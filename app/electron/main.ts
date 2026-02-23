@@ -1,6 +1,10 @@
-import { app, BrowserWindow } from 'electron'
-import { createRequire } from 'node:module'
-import { fileURLToPath } from 'node:url'
+import { app, BrowserWindow } from 'electron';
+import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
+import { ipcMain } from "electron";
+import { DicomMetaDictionary } from "dcmjs"
+import fs from "fs";
+import dcmjs from "dcmjs";
 import path from 'node:path'
 
 const require = createRequire(import.meta.url)
@@ -30,10 +34,10 @@ function createWindow() {
   win = new BrowserWindow({
     icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
     webPreferences: {
-      preload: path.join(__dirname, 'preload.mjs'),
+      preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false,
     },
   })
 
@@ -69,3 +73,37 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(createWindow)
+
+// IPC handler to read DICOM file and return metadata
+ipcMain.handle("read-dicom", async (_event, filePaths: string[]) => {
+  const datasets = await Promise.all(
+    filePaths.map(async (filePath) => {
+      const nodeBuffer = await fs.promises.readFile(filePath)
+
+      const arrayBuffer = nodeBuffer.buffer.slice(
+        nodeBuffer.byteOffset,
+        nodeBuffer.byteOffset + nodeBuffer.byteLength
+      )
+
+      const dicomData = dcmjs.data.DicomMessage.readFile(arrayBuffer, {
+        ignoreErrors: true,
+      })
+
+      if (
+        dicomData.dict["00080005"] &&
+        dicomData.dict["00080005"].Value
+      ) {
+        dicomData.dict["00080005"].Value = ["ISO_IR 192"]
+      }
+
+      const dataset =
+        dcmjs.data.DicomMetaDictionary.naturalizeDataset(
+          dicomData.dict
+        )
+
+      return JSON.parse(JSON.stringify(dataset))
+    })
+  )
+
+  return datasets
+})

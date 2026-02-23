@@ -1,4 +1,5 @@
 import { ipcRenderer, contextBridge } from 'electron'
+console.log("Preload loaded");
 
 // --------- Expose some API to the Renderer process ---------
 contextBridge.exposeInMainWorld('ipcRenderer', {
@@ -21,4 +22,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 
   // You can expose other APTs you need here.
   // ...
+})
+
+// --------- Expose Custom API ---------
+contextBridge.exposeInMainWorld("api", {
+  readDicom: (filePath: string[]) =>
+    ipcRenderer.invoke("read-dicom", filePath),
 })

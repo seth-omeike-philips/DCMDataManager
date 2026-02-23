@@ -34,3 +34,6 @@ release
 
 # DCM
 *.dcm
+
+# Dictionary
+PhilipsDictionary.ts
