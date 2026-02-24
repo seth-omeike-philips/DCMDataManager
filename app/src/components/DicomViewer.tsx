@@ -1,18 +1,13 @@
 import React from "react"
-import { data, useLocation, useNavigate } from "react-router-dom"
-
-interface Props {
-  dataset: Record<string, any> | null
-}
+import {useLocation, useNavigate } from "react-router-dom"
+import { BaseDicomMetadata } from "../types/BaseDicomMetadata"
 
 const DicomViewer: React.FC = () => {
   const location = useLocation()
   const navigate = useNavigate()
-  const dataset: any[] = location.state?.data // Need to know type of data being passed here
-
+  const dataset:BaseDicomMetadata[] | null = location.state?.data
   console.log("Received dataset:", dataset)
-  console.log("Dataset type:", typeof dataset)
-  console.log(dataset);
+
   if (!dataset) {
     return (
       <div className="p-6 text-gray-500 text-center">
@@ -20,6 +15,7 @@ const DicomViewer: React.FC = () => {
       </div>
     )
   }
+  
   const formatValue = (value: any): string => {
     if (value == null) return ""
 

@@ -2,7 +2,8 @@ import { app, BrowserWindow } from 'electron';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { ipcMain } from "electron";
-import { DicomMetaDictionary } from "dcmjs"
+import { registerPhilipsDictionary } from '../src/types/PhilipsDictionary';
+import { BaseDicomMetadata } from "../src/types/BaseDicomMetadata";
 import fs from "fs";
 import dcmjs from "dcmjs";
 import path from 'node:path'
@@ -75,8 +76,8 @@ app.on('activate', () => {
 app.whenReady().then(createWindow)
 
 // IPC handler to read DICOM file and return metadata
-ipcMain.handle("read-dicom", async (_event, filePaths: string[]) => {
-  const datasets = await Promise.all(
+ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<BaseDicomMetadata[]> => {
+  const datasets: BaseDicomMetadata[] = await Promise.all(
     filePaths.map(async (filePath) => {
       const nodeBuffer = await fs.promises.readFile(filePath)
 
@@ -96,14 +97,16 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]) => {
         dicomData.dict["00080005"].Value = ["ISO_IR 192"]
       }
 
-      const dataset =
-        dcmjs.data.DicomMetaDictionary.naturalizeDataset(
-          dicomData.dict
-        )
+      // Add Philips private tags to the dictionary before naturalizing
+      registerPhilipsDictionary()
 
+      const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(
+          dicomData.dict
+        ) as BaseDicomMetadata
+
+        
       return JSON.parse(JSON.stringify(dataset))
     })
   )
-
   return datasets
 })

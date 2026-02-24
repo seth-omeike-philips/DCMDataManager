@@ -1,12 +1,12 @@
 import React from "react"
-import { DicomData } from "../App"
 import { useNavigate } from "react-router-dom"
+import { BaseDicomMetadata } from "../types/BaseDicomMetadata"
 
 
 const UploadPage: React.FC = () => {
   
   const navigate = useNavigate()
-  const handleNavigation = (data: DicomData[] | null):void => {
+  const handleNavigation = (data: BaseDicomMetadata[] | null):void => {
     navigate("/viewer", { state: { data } })
   }
 

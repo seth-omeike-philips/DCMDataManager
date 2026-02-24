@@ -36,4 +36,4 @@ release
 *.dcm
 
 # Dictionary
-PhilipsDictionary.ts
+PhilipsTags.json
