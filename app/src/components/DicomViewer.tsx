@@ -1,69 +1,34 @@
-import React from "react"
-import {useLocation, useNavigate } from "react-router-dom"
-import { BaseDicomMetadata } from "../types/BaseDicomMetadata"
+// pages/DicomViewer.tsx
+import React, { useState } from "react"
+import Navbar from "./NavBar"
+import DicomStackViewer from "./DicomStackViewer"
+import DicomSidebar from "../components/DicomSidebar"
+import { useFileContext } from "../context/FileContext"
 
 const DicomViewer: React.FC = () => {
-  const location = useLocation()
-  const navigate = useNavigate()
-  const dataset:BaseDicomMetadata[] | null = location.state?.data
-  console.log("Received dataset:", dataset)
 
-  if (!dataset) {
-    return (
-      <div className="p-6 text-gray-500 text-center">
-        No DICOM loaded
-      </div>
-    )
-  }
-  
-  const formatValue = (value: any): string => {
-    if (value == null) return ""
-
-    if (typeof value === "string") return value
-
-    if (typeof value === "number") return String(value)
-
-    if (Array.isArray(value)) {
-      return value.map(formatValue).join(", ")
-    }
-
-    if (typeof value === "object") {
-      // Handle Person Name
-      if ("Alphabetic" in value) {
-        return value.Alphabetic
-      }
-
-      return JSON.stringify(value)
-    }
-
-    return String(value)
-  }
+  const {filePaths} = useFileContext(); 
+  const [dataSet, setDataSet] = useState<any>(null)
 
 
   return (
-    <div className="p-6 h-full overflow-y-auto bg-gray-50">
-      <h2 className="text-xl font-semibold mb-4">
-        DICOM Metadata
-      </h2>
+    <div className="flex flex-col h-screen">
+      
+      <Navbar
+        onSave={() => console.log("Save clicked")}
+        onExport={() => console.log("Export clicked")}
+        onBack={() => window.history.back()}
+      />
 
-      <div className="space-y-2">
-        {Object.entries(dataset).sort(([a], [b]) =>
-  a.localeCompare(b)
-).map(([key, value]) => (
-          <div
-            key={key}
-            className="grid grid-cols-2 gap-4 bg-white p-3 rounded shadow-sm border border-gray-100"
-          >
-            <div className="font-medium text-gray-700 break-words">
-              {key}
-            </div>
+      <div className="flex flex-1 overflow-hidden">
+        
+        <div className="flex-1">
+          <DicomStackViewer />
+        </div>
 
-            <div className="text-gray-600 break-words">
-              {formatValue(value)}
-            </div>
-          </div>
-        ))}
+        <DicomSidebar dataSet={dataSet} position="right" />
       </div>
+
     </div>
   )
 }

@@ -29,3 +29,8 @@ contextBridge.exposeInMainWorld("api", {
   readDicom: (filePath: string[]) =>
     ipcRenderer.invoke("read-dicom", filePath),
 })
+
+contextBridge.exposeInMainWorld("electronAPI", {
+  readMultipleFiles: (filePaths: string[]) =>
+    ipcRenderer.invoke("read-multiple-files", filePaths),
+})

@@ -9,7 +9,9 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "cornerstone-math": "^0.1.10",
     "dcmjs": "^0.50.1",
+    "dicom-parser": "^1.8.21",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.13.0"

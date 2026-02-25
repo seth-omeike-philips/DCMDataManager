@@ -76,7 +76,8 @@ app.on('activate', () => {
 app.whenReady().then(createWindow)
 
 // IPC handler to read DICOM file and return metadata
-ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<BaseDicomMetadata[]> => {
+ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<string, BaseDicomMetadata>> => {
+  const fileDataset: Record<string, BaseDicomMetadata> = {}
   const datasets: BaseDicomMetadata[] = await Promise.all(
     filePaths.map(async (filePath) => {
       const nodeBuffer = await fs.promises.readFile(filePath)
@@ -104,9 +105,25 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<BaseDic
           dicomData.dict
         ) as BaseDicomMetadata
 
-        
+      fileDataset[filePath] = JSON.parse(JSON.stringify(dataset))
       return JSON.parse(JSON.stringify(dataset))
     })
   )
-  return datasets
+  return fileDataset
 })
+// IPC handler to read file as ArrayBuffer for CornerstoneJS
+ipcMain.handle(
+  "read-multiple-files",
+  async (_event, filePaths: string[]): Promise<ArrayBuffer[]> => {
+    return Promise.all(
+      filePaths.map(async (filePath) => {
+        const buffer = await fs.promises.readFile(filePath)
+
+        return buffer.buffer.slice(
+          buffer.byteOffset,
+          buffer.byteOffset + buffer.byteLength
+        )
+      })
+    )
+  }
+)

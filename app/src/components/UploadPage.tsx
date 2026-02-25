@@ -1,13 +1,13 @@
 import React from "react"
 import { useNavigate } from "react-router-dom"
 import { BaseDicomMetadata } from "../types/BaseDicomMetadata"
-
-
+import { useFileContext } from "../context/FileContext"
 const UploadPage: React.FC = () => {
   
+  const {setFilePaths} = useFileContext();
   const navigate = useNavigate()
-  const handleNavigation = (data: BaseDicomMetadata[] | null):void => {
-    navigate("/viewer", { state: { data } })
+  const handleNavigation = (imageIds: string[]):void => {
+    navigate("/viewer", { state: { imageIds } })
   }
 
   const handleFile = async (e: React.ChangeEvent<HTMLInputElement>):Promise<void> => {
@@ -15,10 +15,20 @@ const UploadPage: React.FC = () => {
     if (!files || files.length === 0) return
     
     const filePaths = Array.from(files).map(file => file.path)
-
     const results = await window.api.readDicom(filePaths)
 
-    handleNavigation(results);
+    filePaths.sort((a, b) => {
+      const metaA: BaseDicomMetadata = results[a]
+      const metaB: BaseDicomMetadata = results[b]
+
+      return (
+        (metaA.InstanceNumber ?? 0) -
+        (metaB.InstanceNumber ?? 0)
+      )
+    })
+    setFilePaths(filePaths);
+
+    handleNavigation(filePaths);
   }
 
   return (
