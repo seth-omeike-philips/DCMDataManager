@@ -18,7 +18,7 @@ const DicomViewer: React.FC = () => {
   }, [location.state])
 
   return (
-    <div className="flex flex-col max-w-full h-screen">
+    <div className="flex flex-col w-full h-screen overflow-hidden">
       
       <Navbar
         onSave={() => console.log("Save clicked")}
@@ -28,11 +28,11 @@ const DicomViewer: React.FC = () => {
 
       <div className="flex flex-1 overflow-hidden">
         
-        <div className="flex-1">
+        <div className="flex-1 flex items-center justify-center">
           <DicomStackViewer setCurSlice={setCurSlice} />
         </div>
 
-        <DicomSidebar dataSet={dataSet} position="right" curSlice={curSlice}/>
+        <DicomSidebar dataSet={dataSet} curSlice={curSlice}/>
       </div>
 
     </div>

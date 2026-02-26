@@ -17,7 +17,7 @@ const App: React.FC = () => {
 );
 
   return (
-    <div className="h-screen overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 text-white flex flex-col">
+    <div className="h-screen w-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 text-white ">
       
       <header className="w-full px-8 py-4 border-b border-slate-700">
         <h1 className="text-xl font-semibold tracking-wide">
@@ -25,7 +25,7 @@ const App: React.FC = () => {
         </h1>
       </header>
 
-      <main className="flex-1 flex items-center justify-center p-8">
+      <main className="w-full flex-1 flex items-center justify-center p-8">
         <FileContext.Provider value={value}>
           <Routes>
             <Route path="/" element={<UploadPage />} />

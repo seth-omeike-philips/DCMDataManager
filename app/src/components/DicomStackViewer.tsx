@@ -124,6 +124,7 @@ const DicomStackViewer: React.FC<
 
         <canvas
         ref={canvasRef}
+        className="max-w-full max-h-full object-contain"
         style={{ maxWidth: "100%", maxHeight: "100%" }}
         />
     </div>

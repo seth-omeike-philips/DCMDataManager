@@ -5,7 +5,6 @@ import { ChevronRight } from "lucide-react"
 
 interface DicomSidebarProps {
   dataSet: Record<string, BaseDicomMetadata>
-  position?: "left" | "right"
   curSlice: DicomSlice | undefined
 }
 
@@ -249,7 +248,6 @@ const NestedField: React.FC<{ label: string; value: any }> = ({
 
 const DicomSidebar: React.FC<DicomSidebarProps> = ({
   dataSet,
-  position = "right",
   curSlice,
 }) => {
   if (!curSlice) {
@@ -259,8 +257,9 @@ const DicomSidebar: React.FC<DicomSidebarProps> = ({
       </div>
     )
   }
-
+  const [displayAdvancedTags, setDisplayAdvancedTags] = useState(false);
   const tags = dataSet[curSlice.filePath]
+
   console.log("Rendering sidebar for slice:", curSlice.fileName, "with tags:", tags)
 
   if (!tags) {
@@ -273,32 +272,55 @@ const DicomSidebar: React.FC<DicomSidebarProps> = ({
 
   return (
     <div
-      className={`w-80 border-l bg-background flex flex-col ${
-        position === "left" ? "order-first border-r border-l-0" : ""
-      } p-4 space-y-4 pb-32`}
+      className={`w-80 border-l bg-background flex flex-col p-4 space-y-4 pb-32`}
     >
       <div className="px-4 py-3 border-b">
         <h2 className="text-sm font-semibold">DICOM Metadata</h2>
-        <p className="text-xs text-muted-foreground">
-          Slice #{tags.InstanceNumber ?? "-"}
-        </p>
+        <div className="flex flex-row items-center justify-between">        
+          <p className="text-xs text-muted-foreground">
+            Slice #{tags.InstanceNumber ?? "-"}
+          </p>
+          <button className="mt-2 text-xs text-muted-foreground hover:text-foreground transition bg-blue-300" onClick={() => setDisplayAdvancedTags(!displayAdvancedTags)}>
+            {displayAdvancedTags ? "Show All Tags" : "Show Common Tags"}
+          </button>
+        </div>
       </div>
 
       <ScrollArea className="flex-1">
-        <div className="p-4 space-y-4">
-          {ALLOWED_KEYS.map((key) => {
-            const value = tags[key]
-            if (value === undefined) return null
+          <div className="p-4 space-y-4">
+            {displayAdvancedTags ? 
+              
+              ALLOWED_KEYS.map((key) => {
+                const value = tags[key]
+                if (value === undefined) return null
 
-            return (
-              <NestedField
-                key={String(key)}
-                label={String(key)}
-                value={value}
-              />
-            )
-          })}
-        </div>
+                return (
+                  <NestedField
+                    key={String(key)}
+                    label={String(key)}
+                    value={value}
+                  />
+                )
+              })
+              :
+              Object.entries(tags).sort().map(([key, value]) => {
+                if (value === undefined) return null
+
+                return (
+                  <NestedField
+                    key={key}
+                    label={key}
+                    value={value}
+                  />
+                )
+              })
+            }
+          </div>
+        
+          
+
+          
+        
       </ScrollArea>
     </div>
   )
