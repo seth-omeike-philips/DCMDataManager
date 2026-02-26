@@ -41,6 +41,11 @@ export default defineConfig({
       renderer: undefined,
     }),
   ],
+  resolve: {
+    alias: {
+      "@": path.resolve(__dirname, "./src"),
+    },
+  }
 
   
 })

@@ -2,15 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import dicomParser from "dicom-parser";
 import { useFileContext } from "../context/FileContext";
 
-type DicomSlice = {
-  rows: number;
-  cols: number;
-  pixelData: Uint16Array;
-  instanceNumber: number;
-  fileName: string;
-};
 
-const DicomStackViewer: React.FC = () => {
+
+const DicomStackViewer: React.FC<
+{ setCurSlice: React.Dispatch<React.SetStateAction<DicomSlice | undefined>> }
+> = ({ setCurSlice }) => {
   const { filePaths } = useFileContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -50,6 +46,7 @@ const DicomStackViewer: React.FC = () => {
           cols,
           pixelData,
           instanceNumber,
+          filePath: filePaths[i],
           fileName
         });
       }
@@ -68,7 +65,10 @@ const DicomStackViewer: React.FC = () => {
   useEffect(() => {
     if (!slices.length) return;
 
+    // This slice should be passed to the sidebar for metadata display
     const slice = slices[currentIndex];
+    setCurSlice(slice);
+
     const canvas = canvasRef.current!;
     const ctx = canvas.getContext("2d")!;
 
@@ -113,7 +113,7 @@ const DicomStackViewer: React.FC = () => {
   };
 
     return (
-    <div className="flex flex-col items-center justify-center bg-black h-full" onWheel={handleWheel}>
+    <div className="flex flex-col items-center justify-center bg-black h-full overflow-hidden" style={{ overscrollBehavior: "contain" }} onWheel={handleWheel}>
         {slices.length > 0 && (
         <div className="text-white mb-2 text-sm">
             Slice {currentIndex + 1} / {slices.length}
