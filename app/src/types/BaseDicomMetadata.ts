@@ -97,6 +97,36 @@ export interface BaseDicomMetadata {
   YFocusCenter: number
   _vrMap: Record<string, string> // PixelData
 
+FilterMaterial: string
+ImageLaterality: string
+InstanceCreationDate: string
+InstanceCreationTime: string
+InstitutionAddress: string
+InstitutionName: string
+NameOfPhysiciansReadingStudy: DicomPatientName[]
+OperatorsName: string
+OtherPatientIDs:string
+PatientAge: string
+PatientBirthDate: string
+PatientComments: string
+PatientSize: number
+PatientWeight: number
+PerformedProcedureStepDescription: string
+PerformedProcedureStepID: string
+PerformedProcedureStepStartDate: string
+PerformedProcedureStepStartTime: string
+PerformingPhysicianName: DicomPatientName[]
+ProcedureCodeSequence: unknown[]
+ReconstructionTargetCenterPatient: number[]
+ReferencedImageSequence: DicomReferencedPerformedProcedureStepSequence[]
+ReferencedStudySequence: unknown[]
+ReferringPhysicianName: unknown[]
+RequestingService: string
+RotationDirection: string
+SliceLocation: number
+SpatialResolution: number
+TableHeight: number
+TablePosition: number
 }
 
 export interface DicomCodeSequenceItem {
@@ -109,11 +139,21 @@ export interface DicomCodeSequenceItem {
 
 export interface DicomReferencedPerformedProcedureStepSequence {
   ReferencedSOPClassUID: string
-  CodinReferencedSOPInstanceUIDgSchemeDesignator: string
+  ReferencedSOPInstanceUID: string
   _vrMap?: Record<string, unknown> // dcmjs internal
 }
 
 export interface DicomPatientName {
   Alphabetic: string
 
+}
+
+export interface RequestAttribute {
+  	ReasonForTheRequestedProcedure: string
+		RequestedProcedureDescription: string
+		RequestedProcedureID: string
+		ScheduledProcedureStepDescription: string
+		ScheduledProcedureStepID: string
+		ScheduledProtocolCodeSequence: DicomCodeSequenceItem[]
+    _vrMap: Record<string, unknown>
 }

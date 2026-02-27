@@ -104,6 +104,7 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
       const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(
           dicomData.dict
         ) as BaseDicomMetadata
+      console.log("Read file:", filePath, "with metadata:", dataset)
 
       fileDataset[filePath] = JSON.parse(JSON.stringify(dataset))
       return JSON.parse(JSON.stringify(dataset))
@@ -125,5 +126,24 @@ ipcMain.handle(
         )
       })
     )
+  }
+)
+
+// IPC handler to encode changed DCM file into ArrayBuffer for saving
+ipcMain.handle(
+  "write-dicom",
+  async (_event, outputPath: string, modifiedDatasets: Record<string, BaseDicomMetadata>) => {
+
+    Object.entries(modifiedDatasets).map(([filePath, modifiedDataset]) => {
+        console.log("Received modified dataset for writing:", modifiedDataset)
+        const curOutputPath = outputPath + `\\${filePath.split('/').pop()}`
+        console.log("Writing modified DICOM to:", curOutputPath)
+        const dicomDict = dcmjs.data.DicomMetaDictionary.denaturalizeDataset(modifiedDataset)
+        const dicomData = dcmjs.data.DicomMessage.write(dicomDict)
+
+
+        fs.promises.writeFile(curOutputPath, Buffer.from(dicomData))
+    })
+    
   }
 )

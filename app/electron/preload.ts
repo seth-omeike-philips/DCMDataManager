@@ -1,3 +1,4 @@
+import { BaseDicomMetadata } from '@/types/BaseDicomMetadata';
 import { ipcRenderer, contextBridge } from 'electron'
 console.log("Preload loaded");
 
@@ -28,7 +29,10 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 contextBridge.exposeInMainWorld("api", {
   readDicom: (filePath: string[]) =>
     ipcRenderer.invoke("read-dicom", filePath),
+  writeDicom: (outputPath: string, metadata: Record<string, BaseDicomMetadata>) =>
+    ipcRenderer.invoke("write-dicom", outputPath, metadata),
 })
+
 
 contextBridge.exposeInMainWorld("electronAPI", {
   readMultipleFiles: (filePaths: string[]) =>
