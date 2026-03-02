@@ -109,7 +109,6 @@ const ALLOWED_KEYS: (keyof BaseDicomMetadata)[] = [
   "XFocusCenter",
   "XRayTubeCurrent",
   "YFocusCenter",
-  
   "FilterMaterial",
   "ImageLaterality",
   "InstanceCreationDate",

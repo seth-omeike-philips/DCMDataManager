@@ -104,7 +104,6 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
       const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(
           dicomData.dict
         ) as BaseDicomMetadata
-      console.log("Read file:", filePath, "with metadata:", dataset)
 
       fileDataset[filePath] = JSON.parse(JSON.stringify(dataset))
       return JSON.parse(JSON.stringify(dataset))
