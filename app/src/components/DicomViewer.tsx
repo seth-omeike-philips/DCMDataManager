@@ -20,11 +20,7 @@ const DicomViewer: React.FC = () => {
   return (
     <div className="flex flex-col w-full h-screen overflow-hidden">
       
-      <Navbar
-        onSave={() => console.log("Save clicked")}
-        onExport={() => console.log("Export clicked")}
-        onBack={() => window.history.back()}
-      />
+      <Navbar dataSet={dataSet}/>
 
       <div className="flex flex-1 overflow-hidden">
         
