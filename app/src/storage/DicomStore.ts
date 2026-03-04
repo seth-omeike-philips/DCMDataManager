@@ -1,0 +1,1 @@
+export const dicomStore: Record<string, any> = {}

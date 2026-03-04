@@ -35,7 +35,6 @@ const tagFunctions: TagFunctions  = {
     },
     KEEP: (dataset,key):void => {
         // Do nothing, keep the original value
-        console.log(`Keeping original value for key ${key}: ${dataset[key]}`)
     },
     // We will most likely need to pass in some additional parameters for the MAP function, 
     // such as a mapping dictionary or a callback function to determine the new value based

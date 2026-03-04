@@ -142,12 +142,6 @@ const ALLOWED_KEYS: (keyof BaseDicomMetadata)[] = [
 ]
 ALLOWED_KEYS.sort() // Sort keys alphabetically for better UX
 
-const formatPrimitive = (value: unknown): string => {
-  if (value === null || value === undefined) return "-"
-  if (Array.isArray(value)) return value.join(", ")
-  return String(value)
-}
-
 const NestedField: React.FC<{ label: string; value: any }> = ({
   label,
   value,

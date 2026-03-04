@@ -4,9 +4,12 @@ import { fileURLToPath } from 'node:url';
 import { ipcMain } from "electron";
 import { registerPhilipsDictionary } from '../src/types/PhilipsDictionary';
 import { BaseDicomMetadata } from "../src/types/BaseDicomMetadata";
+import { dialog } from "electron"
+
 import fs from "fs";
 import dcmjs from "dcmjs";
 import path from 'node:path'
+import { dicomStore } from '../src/storage/DicomStore';
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -78,7 +81,7 @@ app.whenReady().then(createWindow)
 // IPC handler to read DICOM file and return metadata
 ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<string, BaseDicomMetadata>> => {
   const fileDataset: Record<string, BaseDicomMetadata> = {}
-  const datasets: BaseDicomMetadata[] = await Promise.all(
+  await Promise.all(
     filePaths.map(async (filePath) => {
       const nodeBuffer = await fs.promises.readFile(filePath)
 
@@ -90,6 +93,7 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
       const dicomData = dcmjs.data.DicomMessage.readFile(arrayBuffer, {
         ignoreErrors: true,
       })
+      dicomStore[filePath] = dicomData
 
       if (
         dicomData.dict["00080005"] &&
@@ -106,7 +110,6 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
         ) as BaseDicomMetadata
 
       fileDataset[filePath] = JSON.parse(JSON.stringify(dataset))
-      return JSON.parse(JSON.stringify(dataset))
     })
   )
   return fileDataset
@@ -128,21 +131,68 @@ ipcMain.handle(
   }
 )
 
+
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
 ipcMain.handle(
   "write-dicom",
-  async (_event, outputPath: string, modifiedDatasets: Record<string, BaseDicomMetadata>) => {
+  async (_event, outputPath: string, modifiedDatasets: Record<string, BaseDicomMetadata>):Promise<ExportResult> => {
+    registerPhilipsDictionary() 
+    try {
+      const writePromises = Object.entries(modifiedDatasets).map(
+        async ([filePath, modifiedDataset]) => {
 
-    Object.entries(modifiedDatasets).map(([filePath, modifiedDataset]) => {
-        console.log("Received modified dataset for writing:", modifiedDataset)
-        const curOutputPath = outputPath + `\\${filePath.split('/').pop()}`
-        console.log("Writing modified DICOM to:", curOutputPath)
-        const dicomDict = dcmjs.data.DicomMetaDictionary.denaturalizeDataset(modifiedDataset)
-        const dicomData = dcmjs.data.DicomMessage.write(dicomDict)
+          const fileName = filePath.split("\\").pop()
+          // Figure out a better way to prevent this 
+          if (fileName === undefined) {
+            return 
+          }
+          const curOutputPath = path.join(outputPath, fileName)
+          const originalDicom = dicomStore[filePath]
+          
+          for (const key of Object.keys(modifiedDataset) as (keyof BaseDicomMetadata)[]) {
+            const tagInfo = dcmjs.data.DicomMetaDictionary.nameMap[key]
+            if (!tagInfo) continue
 
+            const tagCode = tagInfo.tag.replace(/[(),]/g, "")
+            const element = originalDicom.dict[tagCode]
+            if (!element) continue
+            if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue
+            
+            const value = modifiedDataset[key]
+            if (value === undefined || value === null) continue
 
-        fs.promises.writeFile(curOutputPath, Buffer.from(dicomData))
-    })
-    
+            element.Value = Array.isArray(value) ? value : [value]
+          }
+
+          const buffer = originalDicom.write()
+
+          await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
+        }
+      )
+
+      await Promise.all(writePromises)
+
+      return { success: true }
+
+    } catch (error) {
+      console.error("Export failed:", error)
+      return { success: false, error: String(error) }
+    }
   }
 )
+
+
+ipcMain.handle("select-export-folder", async ():Promise<ExportFolderResult> => {
+  const result = await dialog.showOpenDialog({
+    properties: ["openDirectory"]
+  })
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true }
+  }
+
+  return {
+    canceled: false,
+    folderPath: result.filePaths[0]
+  }
+})

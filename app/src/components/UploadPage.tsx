@@ -25,13 +25,13 @@ const UploadPage: React.FC = () => {
 
     const filePaths = Array.from(fileList).map(file => file.path)
     const results = await window.api.readDicom(filePaths)
-
+    console.log(results)
     filePaths.sort((a, b) => {
-      const metaA: BaseDicomMetadata = results[a]
-      const metaB: BaseDicomMetadata = results[b]
+      const metaA = results[a]
+      const metaB = results[b]
       return (metaA.InstanceNumber ?? 0) - (metaB.InstanceNumber ?? 0)
     })
-
+    setLoading(false)
     setFilePaths(filePaths)
     handleNavigation(results)
   }

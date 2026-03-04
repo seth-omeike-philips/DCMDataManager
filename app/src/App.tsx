@@ -4,10 +4,6 @@ import { Routes, Route } from "react-router-dom"
 import { FileContext } from "./context/FileContext"
 import UploadPage from "./components/UploadPage"
 
-export interface DicomData {
-  [key: string]: any
-}
-
 const App: React.FC = () => {
   const [filePaths, setFilePaths] = useState<string[]|null>(null);
 
