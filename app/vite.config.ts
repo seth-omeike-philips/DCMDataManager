@@ -2,29 +2,11 @@ import { defineConfig } from 'vite'
 import path from 'node:path'
 import electron from 'vite-plugin-electron/simple'
 import react from '@vitejs/plugin-react'
-import { resolve } from "path"
 
 // https://vitejs.dev/config/
-export default defineConfig({
-  build: {
-    rollupOptions: {
-      input: {
-        main: resolve(__dirname, "electron/main.ts"),
-        preload: resolve(__dirname, "electron/preload.ts"),
-      },
-      output: {
-        format: "cjs",
-      },
-    },
-    commonjsOptions: {
-      transformMixedEsModules: true,
-    },
-  },
-  
+export default defineConfig({  
   plugins: [
     react(),
-    
-
     electron({
       main: {
         // Shortcut of `build.lib.entry`.

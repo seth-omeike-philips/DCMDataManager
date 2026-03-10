@@ -1,5 +1,6 @@
 {
-  "name": "app",
+  "name": "philips-dcm-reader",
+  "productName": "Philips DICOM Data Manager",
   "private": true,
   "version": "0.0.0",
   "scripts": {
@@ -7,6 +8,7 @@
     "build": "tsc && vite build && electron-builder",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
     "preview": "vite preview"
+    
   },
   "dependencies": {
     "@radix-ui/react-accordion": "^1.2.12",

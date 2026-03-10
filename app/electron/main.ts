@@ -1,5 +1,4 @@
 import { app, BrowserWindow } from 'electron';
-import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 import { ipcMain } from "electron";
 import { registerPhilipsDictionary } from '../src/types/PhilipsDictionary';
@@ -11,7 +10,6 @@ import dcmjs from "dcmjs";
 import path from 'node:path'
 import { dicomStore } from '../src/storage/DicomStore';
 
-const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // The built directory structure
@@ -21,7 +19,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // │ │
 // │ ├─┬ dist-electron
 // │ │ ├── main.js
-// │ │ └── preload.mjs
+// │ │ └── preload.js
 // │
 process.env.APP_ROOT = path.join(__dirname, '..')
 
@@ -29,14 +27,15 @@ process.env.APP_ROOT = path.join(__dirname, '..')
 export const VITE_DEV_SERVER_URL = process.env['VITE_DEV_SERVER_URL']
 export const MAIN_DIST = path.join(process.env.APP_ROOT, 'dist-electron')
 export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
-
+console.log("APP_ROOT:", process.env.APP_ROOT)
+console.log("Renderer path:", path.join(RENDERER_DIST, "index.html"))
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
 let win: BrowserWindow | null
 
 function createWindow() {
   win = new BrowserWindow({
-    icon: path.join(process.env.VITE_PUBLIC, 'electron-vite.svg'),
+    icon: path.join(process.env.VITE_PUBLIC, 'philips-icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -77,10 +76,12 @@ app.on('activate', () => {
 })
 
 app.whenReady().then(createWindow)
-
+registerPhilipsDictionary()
 // IPC handler to read DICOM file and return metadata
 ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<string, BaseDicomMetadata>> => {
   const fileDataset: Record<string, BaseDicomMetadata> = {}
+  // Add Philips private tags to the dictionary before naturalizing
+  
   await Promise.all(
     filePaths.map(async (filePath) => {
       const nodeBuffer = await fs.promises.readFile(filePath)
@@ -102,8 +103,7 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
         dicomData.dict["00080005"].Value = ["ISO_IR 192"]
       }
 
-      // Add Philips private tags to the dictionary before naturalizing
-      registerPhilipsDictionary()
+      
 
       const dataset = dcmjs.data.DicomMetaDictionary.naturalizeDataset(
           dicomData.dict
@@ -136,7 +136,7 @@ ipcMain.handle(
 ipcMain.handle(
   "write-dicom",
   async (_event, outputPath: string, modifiedDatasets: Record<string, BaseDicomMetadata>):Promise<ExportResult> => {
-    registerPhilipsDictionary() 
+     
     try {
       const writePromises = Object.entries(modifiedDatasets).map(
         async ([filePath, modifiedDataset]) => {

@@ -7,6 +7,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
 
+
+type LoadingMessage = "Reading metadata and sorting slices" | "Finding DICOM Files"
 const UploadPage: React.FC = () => {
   const { setFilePaths } = useFileContext()
   const navigate = useNavigate()
@@ -14,16 +16,131 @@ const UploadPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [fileCount, setFileCount] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
+  const [loadingMessage, setLoadingMessage] = useState<LoadingMessage>("Finding DICOM Files")
 
   const handleNavigation = (fileData: Record<string, BaseDicomMetadata>): void => {
     navigate("/viewer", { state: { fileData } })
   }
 
-  const processFiles = async (fileList: FileList) => {
-    setLoading(true)
-    setFileCount(fileList.length)
+  const asyncPool = async<T,R>(limit:number, items:T[], iteratorFn:(item:T)=> Promise<R>):Promise<R[]> => {
+    const ret: Promise<R>[] = []
+    const executing:Promise<any>[] = []
 
-    const filePaths = Array.from(fileList).map(file => file.path)
+    for (const item of items) {
+      const p = Promise.resolve().then(()=> iteratorFn(item))
+      ret.push(p)
+
+      if (limit <= items.length) {
+        const e:Promise<any> = p.then(() => executing.splice(executing.indexOf(e),1))
+        executing.push(e)
+
+        if (executing.length >=limit) {
+          await Promise.race(executing)
+        }
+      }
+    }
+
+    return Promise.all(ret)
+  }
+
+  const collectEntries = async(entry: FileSystemEntry,depth: number,maxDepth: number,files: File[]): Promise<void> => {
+    if (depth > maxDepth) return;
+
+    if (entry.isFile) {
+      const fileEntry = entry as FileSystemFileEntry;
+
+      await new Promise<void>((resolve) => {
+        fileEntry.file((file) => {
+          files.push(file);
+          resolve();
+        });
+      });
+    }
+
+    if (entry.isDirectory) {
+      const reader = (entry as FileSystemDirectoryEntry).createReader();
+
+      const readAllEntries = async (): Promise<FileSystemEntry[]> => {
+        const all: FileSystemEntry[] = [];
+
+        while (true) {
+          const batch: FileSystemEntry[] = await new Promise((resolve) =>
+            reader.readEntries(resolve)
+          );
+
+          if (!batch.length) break;
+
+          all.push(...batch);
+        }
+
+        return all;
+      };
+
+      const entries = await readAllEntries();
+
+      console.log("Total entries in directory:", entries.length);
+
+      await Promise.all(
+        entries.map((ent) => collectEntries(ent, depth + 1, maxDepth, files))
+      );
+    }
+  };
+
+  const filterDicomFiles = async (files: File[]):Promise<File[]> => {
+    const results = await asyncPool(20, files, async (file) => {
+      const valid = await isDicomFile(file)
+      return valid ? file : null
+    })
+
+    return results.filter(Boolean) as File[]
+  }
+
+
+  const isDicomFile = async (file: File): Promise<boolean> => {
+    if (file.size < 132) return false; // too small to be DICOM
+
+    const buffer = await file.slice(0, 132).arrayBuffer(); // only read first 132 bytes
+    const view = new DataView(buffer);
+
+    // Check for "DICM" at byte offset 128
+    const dicm =
+      String.fromCharCode(
+        view.getUint8(128),
+        view.getUint8(129),
+        view.getUint8(130),
+        view.getUint8(131)
+      ) === "DICM";
+
+    return dicm;
+  };
+
+  const MAX_DEPTH = 2;
+
+const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH):Promise<File[]> => {
+  const dicomFiles: File[] = [];
+
+  for (const file of Array.from(fileList)) {
+    // Calculate depth from webkitRelativePath
+    const pathDepth = file.webkitRelativePath.split("/").length - 1; // -1 for file itself
+    if (pathDepth > maxDepth) continue;
+
+    if (await isDicomFile(file)) {
+      dicomFiles.push(file);
+      setFileCount((prev) => prev+1);
+    };
+  }
+
+  return dicomFiles;
+}
+  
+  const processFilesFromArray = async (file:File[]) => {
+    if (file.length ===0) {
+      setLoading(false)
+      return
+    }
+
+    const filePaths = file.map(file => file.path);
+    setLoadingMessage("Reading metadata and sorting slices")
     const results = await window.api.readDicom(filePaths)
     console.log(results)
     filePaths.sort((a, b) => {
@@ -34,21 +151,67 @@ const UploadPage: React.FC = () => {
     setLoading(false)
     setFilePaths(filePaths)
     handleNavigation(results)
+
+  }
+  const processFiles = async (fileList: FileList) => {
+    setLoading(true)
+    const dicomFiles = await getDicomFilesFromFolder(fileList, MAX_DEPTH);
+    processFilesFromArray(dicomFiles)
   }
 
-  const handleFileInput = async (
-    e: React.ChangeEvent<HTMLInputElement>
-  ) => {
+  const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
+    setLoadingMessage("Finding DICOM Files")
+    const start =new Date();
     await processFiles(e.target.files)
+    const end = new Date();
+    const elapsedMs = (end.getTime() - start.getTime()) 
+    console.log(`Elapsed seconds: ${elapsedMs/1000}`)
   }
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
     setIsDragging(false)
+    setLoading(true)
+    setLoadingMessage("Finding DICOM Files")
+    const start =new Date();
 
-    if (!e.dataTransfer.files || e.dataTransfer.files.length === 0) return
-    await processFiles(e.dataTransfer.files)
+    const items = e.dataTransfer.items
+    const files: File[] = []
+
+
+    const start1 = new Date();
+    await Promise.all(
+      Array.from(items).map(async (item) => {
+        const entry = item.webkitGetAsEntry()
+        if (entry) {
+          await collectEntries(entry, 0, MAX_DEPTH, files)
+        }
+      })
+    )
+    const end1 = new Date()
+    console.log(`Length of files collected: ${files.length}`)
+    const elapsedMs1 = (end1.getTime() - start1.getTime()) 
+    console.log(`Elapsed seconds: ${elapsedMs1/1000}`)
+
+
+    const start2 = new Date()
+    const dicomFiles = await filterDicomFiles(files)
+    console.log(`Length of files filtered: ${dicomFiles.length}`)
+    const end2 = new Date()
+    const elapsedMs2 = (end2.getTime() - start2.getTime()) 
+    console.log(`Elapsed seconds: ${elapsedMs2/1000}`)
+
+
+    const start3 = new Date()
+    await processFilesFromArray(dicomFiles)
+    const end3 = new Date()
+    const elapsedMs3 = (end3.getTime() - start3.getTime()) 
+    console.log(`Elapsed seconds: ${elapsedMs3/1000}`)
+
+    const end = new Date();
+    const elapsedMs = (end.getTime() - start.getTime()) 
+    console.log(`Elapsed seconds: ${elapsedMs/1000}`)
   }
 
   return (
@@ -93,14 +256,8 @@ const UploadPage: React.FC = () => {
                 <p className="text-sm text-muted-foreground mt-2">
                   or click to browse
                 </p>
-
-                <input
-                  id="fileInput"
-                  type="file"
-                  multiple
-                  accept=".dcm"
-                  className="hidden"
-                  onChange={handleFileInput}
+                {/**@ts-ignore */}
+                <input id="fileInput" type="file" webkitdirectory="" directory=""  multiple className="hidden" onChange={handleFileInput}
                 />
               </div>
             </>
@@ -112,7 +269,7 @@ const UploadPage: React.FC = () => {
                 {fileCount > 1 && "s"}...
               </div>
               <Alert>
-                Reading metadata and sorting slices
+                {loadingMessage}
               </Alert>
             </div>
           )}

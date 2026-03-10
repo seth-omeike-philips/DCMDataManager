@@ -88,24 +88,33 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
             </h2>
 
             {/* Profile Selector */}
-            <div className="mb-6">
-            <label className="mr-2 font-medium">
-                Profile:
-            </label>
-            <select
-                value={profile}
-                onChange={e =>
-                setProfile(e.target.value as Profile)
-                }
-                className="border rounded px-2 py-1"
-            >
-                <option value="ANONYMIZE">
-                ANONYMIZE
-                </option>
-                <option value="DEIDENTIFY">
-                DEIDENTIFY
-                </option>
-            </select>
+            <div className="mb-6 flex flex-row items-center justify-between">
+                <div className="flex">
+                    <label className="mr-2 font-medium">
+                        Profile:
+                    </label>
+                    <select
+                        value={profile}
+                        onChange={e =>
+                        setProfile(e.target.value as Profile)
+                        }
+                        className="border rounded px-2 py-1"
+                    >
+                        <option value="ANONYMIZE">
+                        ANONYMIZE
+                        </option>
+                        <option value="DEIDENTIFY">
+                        DEIDENTIFY
+                        </option>
+                    </select>
+                </div>
+
+                {/* Submit */}
+                <div className="mt-6 flex justify-end">
+                    <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                        Apply Policy
+                    </button>
+                </div>
             </div>
 
             {/* Tag List */}
@@ -163,15 +172,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
             })}
             </div>
 
-            {/* Submit */}
-            <div className="mt-6 flex justify-end">
-            <button
-                onClick={handleSubmit}
-                className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-            >
-                Apply Policy
-            </button>
-            </div>
+
         </div>
         </div>
     )}

@@ -18,9 +18,6 @@ const tagFunctions: TagFunctions  = {
     REMOVE: (dataset,key):void => {
         delete dataset[key];
     },
-    REPLACE_WITH_UNDEFINED: (dataset,key):void => {
-        dataset[key] = undefined;
-    },
     HASH: (dataset,key):void =>{
         const value = dataset[key]
         if (typeof value !== "string") {
@@ -33,7 +30,7 @@ const tagFunctions: TagFunctions  = {
         // Generate a UID (simplified example)
         dataset[key] = "1.2.840.113619.2.1.GENUID." + Math.floor(Math.random() * 1000000);
     },
-    KEEP: (dataset,key):void => {
+    KEEP: ():void => {
         // Do nothing, keep the original value
     },
     // We will most likely need to pass in some additional parameters for the MAP function, 
@@ -66,13 +63,14 @@ const tagFunctions: TagFunctions  = {
           }
         }
 
-        else if (key === "PatientID") {
+        else if (key === "PatientID" || key === "OtherPatientIDs") {
           const value = dataset[key]
           if (typeof value !== "string") {
             console.warn(`Expected a string value for mapping PatientID, but got ${typeof value} for key ${key}, value: ${value}. Skipping mapping.`)
             return
           }
-          dataset[key] = "Mapped_" + value
+          dataset["PatientID"] = "Mapped_" + dataset["PatientID"]
+          dataset["OtherPatientIDs"] = "Mapped_" + dataset["OtherPatientIDs"]
         }
 
         else if (key === "StudyDate") {
@@ -88,6 +86,45 @@ const tagFunctions: TagFunctions  = {
           const newYear = Math.floor(Math.random()*30) + 1990
           dataset[key] = `${newYear}${String(newMonth).padStart(2, '0')}${String(newDay).padStart(2, '0')}`
         }
+        else if (key === "PatientSex") {
+          // Even Represents Male, Odd represents Female
+          const value = dataset[key]
+          if (value === undefined) {
+            console.log(`No value to edit: Value: ${value}`)
+            return 
+          }
+          if ((value !== "M") && (value !== "F")) {
+            console.warn(`Expected sex to either be M or F but got ${value}`)
+            return
+          }
+          
+          if (value == "M") {
+            // Generate Even number in range [0,100]
+            const randomNumber = Math.floor(Math.random()*51)*2
+            dataset[key]= String(randomNumber)
+          }
+          else if (value == "F") {
+            // Generate Odd number in range [0,100]
+            const randomNumber = Math.floor(Math.random()*50)*2 + 1
+            dataset[key]= String(randomNumber)
+          }
+          
+        }
+        else if (key === "PatientBirthDate") {
+          const value = dataset[key]
+          if (value === undefined || value === "") {
+            console.log(`No value to edit: Value: ${value}`)
+            return 
+          }
+          // Not sure whether the PatientAge is a string integer or DOB
+          const newMonth = 1
+          const newDay = 1
+          const year = value.substring(0,4)
+          dataset[key] = `${year}${String(newMonth).padStart(2, '0')}${String(newDay).padStart(2, '0')}`
+          
+        }
+
+
     },
 }
 
