@@ -122,7 +122,19 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
             {Object.keys(
                 dataSet[Object.keys(dataSet)[0]]
             )
-            .sort((a, b) => a.localeCompare(b))
+            .sort((a, b) => {
+            const isTag = (k: string) => /^[0-9A-Fa-f]{8}$/.test(k)
+
+            const aIsTag = isTag(a)
+            const bIsTag = isTag(b)
+
+            // Alphabetical keys first
+            if (!aIsTag && bIsTag) return -1
+            if (aIsTag && !bIsTag) return 1
+
+            // If both same type, sort normally
+            return a.localeCompare(b)
+        })
             .map(key => {
                 const typedKey = key as keyof BaseDicomMetadata
 
@@ -135,37 +147,28 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
                     {key}
                     </span>
 
-                    <select
-                    value={
-                        policyLogic[profile][typedKey] ??
-                        "COULD_NOT_FIND_TAG"
-                    }
-                    onChange={e =>
-                        handleTagChange(
-                        typedKey,
-                        e.target.value as Tag
-                        )
-                    }
-                    className="border rounded px-2 py-1"
+                    <select value={policyLogic[profile][typedKey] ?? "COULD_NOT_FIND_TAG"}
+                        onChange={e => handleTagChange( typedKey,e.target.value as Tag)}
+                        className="border rounded px-2 py-1"
                     >
-                    <option value="KEEP">
-                        KEEP
-                    </option>
-                    <option value="REMOVE">
-                        REMOVE
-                    </option>
-                    <option value="REPLACE_WITH_UNDEFINED">
-                        REPLACE_WITH_UNDEFINED
-                    </option>
-                    <option value="HASH">
-                        HASH
-                    </option>
-                    <option value="GENERATE_UID">
-                        GENERATE_UID
-                    </option>
-                    <option value="MAP">
-                        MAP
-                    </option>
+                        <option value="KEEP">
+                            KEEP
+                        </option>
+                        <option value="REMOVE">
+                            REMOVE
+                        </option>
+                        <option value="REPLACE_WITH_UNDEFINED">
+                            REPLACE_WITH_UNDEFINED
+                        </option>
+                        <option value="HASH">
+                            HASH
+                        </option>
+                        <option value="GENERATE_UID">
+                            GENERATE_UID
+                        </option>
+                        <option value="MAP">
+                            MAP
+                        </option>
                     </select>
                 </div>
                 )
