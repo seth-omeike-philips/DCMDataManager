@@ -117,10 +117,11 @@ const tagFunctions: TagFunctions  = {
             return 
           }
           // Not sure whether the PatientAge is a string integer or DOB
-          const newMonth = 1
-          const newDay = 1
-          const year = value.substring(0,4)
-          dataset[key] = `${year}${String(newMonth).padStart(2, '0')}${String(newDay).padStart(2, '0')}`
+          const newMonth = String(2)
+          const newDay = String(29)
+          const plusOrMinusOne = Math.floor(Math.random() * 2) * 2 - 1
+          const year = String( Number(value.substring(0,4)) + plusOrMinusOne )
+          dataset[key] = `${year}${newMonth.padStart(2, '0')}${newDay.padStart(2, '0')}`
           
         }
 
