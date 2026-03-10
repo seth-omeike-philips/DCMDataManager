@@ -4,7 +4,7 @@ import { ipcMain } from "electron";
 import { registerPhilipsDictionary } from '../src/types/PhilipsDictionary';
 import { BaseDicomMetadata } from "../src/types/BaseDicomMetadata";
 import { dialog } from "electron"
-import archiver from "archiver"
+import { Menu } from "electron"
 
 import fs from "fs";
 import dcmjs from "dcmjs";
@@ -32,10 +32,26 @@ console.log("APP_ROOT:", process.env.APP_ROOT)
 console.log("Renderer path:", path.join(RENDERER_DIST, "index.html"))
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
 
-let win: BrowserWindow | null
+let win: BrowserWindow | null = null
+let splash: BrowserWindow | null = null
+
+function createSplash() {
+  splash = new BrowserWindow({
+    width: 1093,
+    height: 348,
+    frame: false,
+    transparent: true,
+    alwaysOnTop: true,
+    icon: path.join(process.env.VITE_PUBLIC, 'philips-icon.png'),
+    skipTaskbar: true
+  })
+  console.log(path.join(process.cwd(), "public", "splash.html"))
+  splash.loadFile(path.join(process.cwd(), "public", "splash.html"))
+}
 
 function createWindow() {
   win = new BrowserWindow({
+    show: false, // important
     icon: path.join(process.env.VITE_PUBLIC, 'philips-icon.png'),
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
@@ -45,15 +61,19 @@ function createWindow() {
     },
   })
 
-  // Test active push message to Renderer-process.
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
+  })
+
+  // Show main window once ready
+  win.once("ready-to-show", () => {
+    splash?.destroy()
+    win?.show()
   })
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
   } else {
-    // win.loadFile('dist/index.html')
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
 }
@@ -76,8 +96,14 @@ app.on('activate', () => {
   }
 })
 
-app.whenReady().then(createWindow)
-registerPhilipsDictionary()
+app.whenReady().then(() => {
+  registerPhilipsDictionary()
+  Menu.setApplicationMenu(null)
+
+  createSplash()
+  createWindow()
+
+})
 // IPC handler to read DICOM file and return metadata
 ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<string, BaseDicomMetadata>> => {
   const fileDataset: Record<string, BaseDicomMetadata> = {}

@@ -3,6 +3,7 @@ import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
 import { policyLogicFunction } from "@/policy/PolicyLogic"
 import { basePolicyLogic } from "@/policy/BasePolicyLogic"
 import { ProcessingState } from "./ProcessingState"
+import { NonEditableTags } from "@/policy/NonEditableTags"
 interface Props {
   dataSet: Record<string, BaseDicomMetadata>
   onClose: () => void
@@ -129,12 +130,13 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
             const bIsTag = isTag(b)
 
             // Alphabetical keys first
-            if (!aIsTag && bIsTag) return -1
+            if (!aIsTag && bIsTag) return -1    
             if (aIsTag && !bIsTag) return 1
 
             // If both same type, sort normally
             return a.localeCompare(b)
-        })
+            })
+            .filter(key => !NonEditableTags.has(key))
             .map(key => {
                 const typedKey = key as keyof BaseDicomMetadata
 

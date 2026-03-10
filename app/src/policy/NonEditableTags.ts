@@ -1,0 +1,22 @@
+export const NonEditableTags = new Set([
+  "PixelData",
+  "BitsAllocated",
+  "BitsStored",
+  "HighBit",
+  "PixelRepresentation",
+  "SamplesPerPixel",
+  "PhotometricInterpretation",
+  "Rows",
+  "Columns",
+  "ImageOrientationPatient",
+  "ImagePositionPatient",
+  "PixelSpacing",
+  "SliceThickness",
+  "SpacingBetweenSlices",
+  "FrameOfReferenceUID",
+  "SOPClassUID",
+  "SOPInstanceUID",
+  "SeriesInstanceUID",
+  "StudyInstanceUID",
+  "_vrMap"
+])
