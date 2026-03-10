@@ -4,6 +4,7 @@ import { ipcMain } from "electron";
 import { registerPhilipsDictionary } from '../src/types/PhilipsDictionary';
 import { BaseDicomMetadata } from "../src/types/BaseDicomMetadata";
 import { dialog } from "electron"
+import archiver from "archiver"
 
 import fs from "fs";
 import dcmjs from "dcmjs";
@@ -133,31 +134,36 @@ ipcMain.handle(
 
 
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
-ipcMain.handle(
-  "write-dicom",
-  async (_event, outputPath: string, modifiedDatasets: Record<string, BaseDicomMetadata>):Promise<ExportResult> => {
-     
+ipcMain.handle("write-dicom",async (_event,outputPath: string,modifiedDatasets: Record<string, BaseDicomMetadata>
+  ): Promise<ExportResult> => {
     try {
+
+      const zipPath = path.join(outputPath, "dicom_export.zip")
+
+      const output = fs.createWriteStream(zipPath)
+      const archive = archiver("zip", { zlib: { level: 9 } })
+
+      archive.pipe(output)
+
       const writePromises = Object.entries(modifiedDatasets).map(
         async ([filePath, modifiedDataset]) => {
 
           const fileName = filePath.split("\\").pop()
-          // Figure out a better way to prevent this 
-          if (fileName === undefined) {
-            return 
-          }
-          const curOutputPath = path.join(outputPath, fileName)
+          if (fileName === undefined) return
+
           const originalDicom = dicomStore[filePath]
-          
+
           for (const key of Object.keys(modifiedDataset) as (keyof BaseDicomMetadata)[]) {
+
             const tagInfo = dcmjs.data.DicomMetaDictionary.nameMap[key]
             if (!tagInfo) continue
 
             const tagCode = tagInfo.tag.replace(/[(),]/g, "")
             const element = originalDicom.dict[tagCode]
+
             if (!element) continue
             if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue
-            
+
             const value = modifiedDataset[key]
             if (value === undefined || value === null) continue
 
@@ -166,11 +172,20 @@ ipcMain.handle(
 
           const buffer = originalDicom.write()
 
-          await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
+          // Append directly to zip instead of writing to disk
+          archive.append(Buffer.from(buffer), { name: fileName })
         }
       )
 
       await Promise.all(writePromises)
+
+      await archive.finalize()
+
+      await new Promise<void>((resolve, reject) => {
+        output.on("close", resolve)
+        output.on("error", reject)
+        archive.on("error", reject)
+      })
 
       return { success: true }
 
@@ -180,7 +195,6 @@ ipcMain.handle(
     }
   }
 )
-
 
 ipcMain.handle("select-export-folder", async ():Promise<ExportFolderResult> => {
   const result = await dialog.showOpenDialog({

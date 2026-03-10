@@ -9,6 +9,11 @@ import { Loader2 } from "lucide-react"
 
 
 type LoadingMessage = "Reading metadata and sorting slices" | "Finding DICOM Files"
+interface ErrorMessage {
+  errorStatus: boolean
+  message: string
+} 
+
 const UploadPage: React.FC = () => {
   const { setFilePaths } = useFileContext()
   const navigate = useNavigate()
@@ -17,6 +22,7 @@ const UploadPage: React.FC = () => {
   const [fileCount, setFileCount] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState<LoadingMessage>("Finding DICOM Files")
+  const [errorMessage, setErrorMessage] = useState<ErrorMessage>()
 
   const handleNavigation = (fileData: Record<string, BaseDicomMetadata>): void => {
     navigate("/viewer", { state: { fileData } })
@@ -136,7 +142,7 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
   const processFilesFromArray = async (file:File[]) => {
     if (file.length ===0) {
       setLoading(false)
-      return
+      throw new Error("No DCM Files Found")
     }
 
     const filePaths = file.map(file => file.path);
@@ -161,12 +167,21 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
 
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
+
+    try {
+
+    
     setLoadingMessage("Finding DICOM Files")
     const start =new Date();
     await processFiles(e.target.files)
     const end = new Date();
     const elapsedMs = (end.getTime() - start.getTime()) 
     console.log(`Elapsed seconds: ${elapsedMs/1000}`)
+
+    } catch (error:any) {
+      setLoading(false)
+      setErrorMessage({errorStatus: true,message: String(error)})
+    }
   }
 
   const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
@@ -174,10 +189,23 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
     setIsDragging(false)
     setLoading(true)
     setLoadingMessage("Finding DICOM Files")
+
+    try {
+
+    
     const start =new Date();
 
     const items = e.dataTransfer.items
     const files: File[] = []
+
+    console.log(`File: ${Array.from(e.dataTransfer.items)}`)
+
+    const zipFile = Array.from(e.dataTransfer.items).find(file =>
+      file.type === "application/zip" ||
+      file.type === "application/x-zip-compressed" ||
+      file.getAsString.name.toLowerCase().endsWith(".zip")
+    )
+    if (zipFile) throw new Error("Zip files are not supported. Please upload a folder or DICOM files directly.")
 
 
     const start1 = new Date();
@@ -212,6 +240,11 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
     const end = new Date();
     const elapsedMs = (end.getTime() - start.getTime()) 
     console.log(`Elapsed seconds: ${elapsedMs/1000}`)
+
+    } catch (error:any) {
+      setLoading(false)
+      setErrorMessage({errorStatus: true,message: String(error)})
+    }
   }
 
   return (
@@ -259,19 +292,27 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
                 {/**@ts-ignore */}
                 <input id="fileInput" type="file" webkitdirectory="" directory=""  multiple className="hidden" onChange={handleFileInput}
                 />
+
+                {errorMessage?.errorStatus && (
+                  <div className="flex flex-col items-center justify-center py-12 space-y-6">
+                    <div className="text-sm text-muted-foreground text-red-500">
+                      Error {errorMessage.message}
+                    </div>
+                  </div>
+                )}
               </div>
             </>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 space-y-6">
-              <Loader2 className="h-10 w-10 animate-spin text-primary" />
-              <div className="text-sm text-muted-foreground">
-                Processing {fileCount} file
-                {fileCount > 1 && "s"}...
+              <div className="flex flex-col items-center justify-center py-12 space-y-6">
+                <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                <div className="text-sm text-muted-foreground">
+                  Processing {fileCount} file
+                  {fileCount > 1 && "s"}...
+                </div>
+                <Alert>
+                  {loadingMessage}
+                </Alert>
               </div>
-              <Alert>
-                {loadingMessage}
-              </Alert>
-            </div>
           )}
         </CardContent>
       </Card>
