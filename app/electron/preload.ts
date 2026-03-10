@@ -29,8 +29,8 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 contextBridge.exposeInMainWorld("api", {
   readDicom: (filePaths: string[]):Promise<Record<string, BaseDicomMetadata>> =>
     ipcRenderer.invoke("read-dicom", filePaths),
-  writeDicom: (outputPath: string, metadata: Record<string, BaseDicomMetadata>):Promise<ExportResult> =>
-    ipcRenderer.invoke("write-dicom", outputPath, metadata),
+  writeDicom: (metadata: Record<string, BaseDicomMetadata>):Promise<ExportResult> =>
+    ipcRenderer.invoke("write-dicom", metadata),
   selectExportFolder: ():Promise<ExportFolderResult> =>
     ipcRenderer.invoke("select-export-folder"),
 })

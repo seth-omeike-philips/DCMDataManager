@@ -23,19 +23,10 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
         return
       }
 
-      // Get Folder
-      const folderResult = await window.api.selectExportFolder()
-
-      if (folderResult.canceled) return
-
-      const outputPath = folderResult.folderPath
-      if (outputPath === undefined) return
-
       setExportStatus("loading")
 
       // Export
-      console.log(outputPath)
-      const result = await window.api.writeDicom(outputPath, dataSet)
+      const result = await window.api.writeDicom(dataSet)
 
       if (result?.success) {
         setExportStatus("success")

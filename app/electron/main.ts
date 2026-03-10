@@ -134,23 +134,26 @@ ipcMain.handle(
 
 
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
-ipcMain.handle("write-dicom",async (_event,outputPath: string,modifiedDatasets: Record<string, BaseDicomMetadata>
-  ): Promise<ExportResult> => {
+ipcMain.handle("write-dicom",async (_event,modifiedDatasets: Record<string, BaseDicomMetadata>
+  ):Promise<ExportResult> => {
     try {
 
-      const zipPath = path.join(outputPath, "dicom_export.zip")
+      // Under the assumption that all filePaths are the same
+      const splitFilePath = Object.keys(modifiedDatasets)[0].split("\\")
+      // Remove the .dcm name from the filePath
+      splitFilePath.pop()
+      const exportFolder = splitFilePath.join("\\")+"_DelD"
+      console.log("ExportFolder: ",exportFolder)
 
-      const output = fs.createWriteStream(zipPath)
-      const archive = archiver("zip", { zlib: { level: 9 } })
-
-      archive.pipe(output)
+      // Create export folder if it doesn't exist
+      await fs.promises.mkdir(exportFolder, { recursive: true })
 
       const writePromises = Object.entries(modifiedDatasets).map(
         async ([filePath, modifiedDataset]) => {
-
           const fileName = filePath.split("\\").pop()
           if (fileName === undefined) return
 
+          const curOutputPath = path.join(exportFolder, fileName)
           const originalDicom = dicomStore[filePath]
 
           for (const key of Object.keys(modifiedDataset) as (keyof BaseDicomMetadata)[]) {
@@ -172,20 +175,11 @@ ipcMain.handle("write-dicom",async (_event,outputPath: string,modifiedDatasets: 
 
           const buffer = originalDicom.write()
 
-          // Append directly to zip instead of writing to disk
-          archive.append(Buffer.from(buffer), { name: fileName })
+          await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
         }
       )
 
       await Promise.all(writePromises)
-
-      await archive.finalize()
-
-      await new Promise<void>((resolve, reject) => {
-        output.on("close", resolve)
-        output.on("error", reject)
-        archive.on("error", reject)
-      })
 
       return { success: true }
 
