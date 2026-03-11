@@ -130,8 +130,8 @@ const tagFunctions: TagFunctions  = {
 }
 
 export const policyLogicFunction = (
-  profile: Profile,
-  policyLogic:Record<Profile, Record<keyof BaseDicomMetadata, Tag>>,
+  profile: string,
+  policyLogic:Record<string, Record<keyof BaseDicomMetadata, Tag>>,
    dataset: BaseDicomMetadata): void => {
     const tagActions = policyLogic[profile]
     for (const key in tagActions) {

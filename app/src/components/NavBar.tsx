@@ -16,6 +16,8 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
     setShowModal(true)
   }
 
+
+
   const handleExport = async () => {
     try {
       if (!dataSet || Object.keys(dataSet).length === 0) {
@@ -54,6 +56,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
         <div className="text-lg font-semibold">DICOM Viewer</div>
 
         <div className="flex gap-3">
+
           <button
             onClick={handleEditTags}
             className="px-4 py-2 bg-blue-600 hover:bg-blue-700 rounded-lg transition"

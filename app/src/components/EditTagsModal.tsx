@@ -5,17 +5,21 @@ import { basePolicyLogic } from "@/policy/BasePolicyLogic"
 import { ProcessingState } from "./ProcessingState"
 import { NonEditableTags } from "@/policy/NonEditableTags"
 import Draggable from "react-draggable"
+import { UploadedProfile } from "@/types/UploadedProfile"
 
 interface Props {
   dataSet: Record<string, BaseDicomMetadata>
   onClose: () => void
 }
 
-const defaultPolicy: Record<Profile, Record<keyof BaseDicomMetadata, Tag>> = basePolicyLogic
+const defaultPolicy: Record<string, Record<keyof BaseDicomMetadata, Tag>> = basePolicyLogic
+
+
+
 
 const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
 
-    const [profile, setProfile] = useState<Profile>("ANONYMIZE")
+    const [profile, setProfile] = useState<string>("ANONYMIZE")
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
     
     const [policyLogic, setPolicyLogic] = useState(defaultPolicy)
@@ -60,6 +64,22 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
         
     }
 
+    const handleUploadProfile = async (file: File) => {
+        const text = await file.text()
+        console.log(text)
+        const parsed: UploadedProfile = JSON.parse(text)
+
+        const { profileName, tags } = parsed
+
+        setPolicyLogic(prev => ({
+        ...prev,
+        [profileName]: {
+            ...prev[profileName],
+            ...tags
+        }
+        }))
+    }
+
   return (
     <>
         {status !== "idle" ? (
@@ -95,31 +115,43 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
                 </h2>
 
                 {/* Profile Selector */}
-                <div className="mb-6 flex flex-row items-center justify-between">
-                    <div className="flex">
-                        <label className="mr-2 font-medium">
-                            Profile:
-                        </label>
+                <div className="mb-6 flex items-center justify-between">
+  
+                    {/* Profile Select */}
+                    <div className="flex items-center gap-2">
+                        <label className="font-medium">Profile:</label>
                         <select
                             value={profile}
-                            onChange={e =>
-                            setProfile(e.target.value as Profile)
-                            }
-                            className="border rounded px-2 py-1"
-                        >
-                            <option value="ANONYMIZE">
-                            ANONYMIZE
-                            </option>
-                            <option value="DEIDENTIFY">
-                            DEIDENTIFY
-                            </option>
+                            onChange={(e) => setProfile(e.target.value as string)}
+                            className="border rounded px-3 py-1"
+                            >
+                            {Object.keys(policyLogic).map(profileName => (
+                                    <option key={profileName} >{profileName}</option>                            
+                            ))}
                         </select>
                     </div>
 
-                    {/* Submit */}
-                    <div className="mt-6 flex justify-end">
-                        <button onClick={handleSubmit} className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
-                            Apply Policy
+                    {/* Actions */}
+                    <div className="flex items-center gap-4">
+
+                        <label className="px-3 py-2 bg-gray-200 rounded-lg cursor-pointer hover:bg-gray-300 text-sm font-medium">
+                            Upload Profile
+                            <input
+                                type="file"
+                                accept=".json"
+                                className="hidden"
+                                onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) handleUploadProfile(file);
+                                }}
+                            />
+                        </label>
+
+                        <button
+                        onClick={handleSubmit}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                        >
+                        Apply Policy
                         </button>
                     </div>
                 </div>

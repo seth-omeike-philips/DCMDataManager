@@ -1,1 +1,0 @@
-type Profile = "ANONYMIZE" | "DEIDENTIFY";
