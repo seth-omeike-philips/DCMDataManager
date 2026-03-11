@@ -16,7 +16,7 @@ function simpleDeterministicHash(input: string): string {
 
 const tagFunctions: TagFunctions  = {
     REMOVE: (dataset,key):void => {
-        delete dataset[key];
+        dataset[key] = undefined;
     },
     HASH: (dataset,key):void =>{
         const value = dataset[key]

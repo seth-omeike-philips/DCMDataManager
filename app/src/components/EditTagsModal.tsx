@@ -78,6 +78,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
             ...tags
         }
         }))
+        setProfile(profileName)
     }
 
   return (

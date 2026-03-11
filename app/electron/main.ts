@@ -201,11 +201,14 @@ ipcMain.handle("write-dicom",async (_event,modifiedDatasets: Record<string, Base
             const tagCode = tagInfo.tag.replace(/[(),]/g, "")
             const element = originalDicom.dict[tagCode]
 
+            const value = modifiedDataset[key]
+            // Catches both null & undefined values 
+            if (value == null) {
+              delete originalDicom.dict[tagCode]
+            }
+
             if (!element) continue
             if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue
-
-            const value = modifiedDataset[key]
-            if (value === undefined || value === null) continue
 
             element.Value = Array.isArray(value) ? value : [value]
           }
