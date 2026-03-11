@@ -260,7 +260,7 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
           {!loading ? (
             <>
               <div className="text-center text-muted-foreground text-sm">
-                Select one or more <span className="font-medium">.dcm</span> files
+                Upload one or more folders
               </div>
 
               <div

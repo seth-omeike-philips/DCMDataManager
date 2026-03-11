@@ -31,6 +31,8 @@ export const RENDERER_DIST = path.join(process.env.APP_ROOT, 'dist')
 console.log("APP_ROOT:", process.env.APP_ROOT)
 console.log("Renderer path:", path.join(RENDERER_DIST, "index.html"))
 process.env.VITE_PUBLIC = VITE_DEV_SERVER_URL ? path.join(process.env.APP_ROOT, 'public') : RENDERER_DIST
+const iconPath = path.join(process.resourcesPath, "philips-icon.ico")
+
 
 let win: BrowserWindow | null = null
 let splash: BrowserWindow | null = null
@@ -42,17 +44,21 @@ function createSplash() {
     frame: false,
     transparent: true,
     alwaysOnTop: true,
-    icon: path.join(process.env.VITE_PUBLIC, 'philips-icon.png'),
+    //icon: path.join(process.env.VITE_PUBLIC, 'philips-icon.png'),
     skipTaskbar: true
   })
   console.log(path.join(process.cwd(), "public", "splash.html"))
-  splash.loadFile(path.join(process.cwd(), "public", "splash.html"))
+  //splash.loadFile(path.join(process.cwd(), "public", "splash.html"))
+  splash.loadFile(path.join(RENDERER_DIST, "splash.html"))
+  splash.webContents.on("did-fail-load", (_, code, desc) => {
+    console.error("Splash failed:", code, desc)
+  })
 }
 
 function createWindow() {
   win = new BrowserWindow({
     show: false, // important
-    icon: path.join(process.env.VITE_PUBLIC, 'philips-icon.png'),
+    icon: iconPath,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
@@ -73,6 +79,7 @@ function createWindow() {
 
   if (VITE_DEV_SERVER_URL) {
     win.loadURL(VITE_DEV_SERVER_URL)
+    win.webContents.openDevTools()
   } else {
     win.loadFile(path.join(RENDERER_DIST, 'index.html'))
   }
@@ -95,6 +102,10 @@ app.on('activate', () => {
     createWindow()
   }
 })
+
+if (process.platform === "win32") {
+  app.setAppUserModelId("com.philips.dcmreader")
+}
 
 app.whenReady().then(() => {
   registerPhilipsDictionary()
