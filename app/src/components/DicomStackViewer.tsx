@@ -16,46 +16,71 @@ const DicomStackViewer: React.FC<
   // 🔹 Load & Parse DICOM Files
   useEffect(() => {
     const loadDicoms = async () => {
-      if (!filePaths || filePaths.length === 0) return;
+      try {
 
-      const buffers = await window.electronAPI.readMultipleFiles(filePaths);
+       
+        if (!filePaths || filePaths.length === 0) return;
+        const buffers = await window.electronAPI.readMultipleFiles(filePaths);
+        const parsedSlices: DicomSlice[] = [];
 
-      const parsedSlices: DicomSlice[] = [];
+        for (let i = 0; i < buffers.length; i++) {
+          const buffer = buffers[i];
+          const fileName = filePaths[i].split(/[/\\]/).pop() || `Slice ${i}`;
 
-      for (let i = 0; i < buffers.length; i++) {
-        const buffer = buffers[i];
-        const fileName = filePaths[i].split(/[/\\]/).pop() || `Slice ${i}`;
+          const byteArray = new Uint8Array(buffer);
 
-        const byteArray = new Uint8Array(buffer);
-        const dataSet = dicomParser.parseDicom(byteArray);
+          const dataSet = dicomParser.parseDicom(byteArray);
+          
 
-        const rows = dataSet.uint16("x00280010")?.valueOf() || 0;
-        const cols = dataSet.uint16("x00280011")?.valueOf() || 0;
-        const instanceNumber = dataSet.intString("x00200013") || 0;
+          const rows = dataSet.uint16("x00280010")?.valueOf()
+          const cols = dataSet.uint16("x00280011")?.valueOf()
+          const instanceNumber = dataSet.intString("x00200013") || 0;
 
-        const pixelElement = dataSet.elements.x7fe00010;
+          if (!rows || !cols) {
+            console.warn("Skipping invalid image:", fileName)
+            continue
+          }
+          const pixelElement = dataSet.elements.x7fe00010;
 
-        const pixelData = new Uint16Array(
-          dataSet.byteArray.buffer,
-          pixelElement.dataOffset,
-          pixelElement.length / 2
-        );
+          if (!pixelElement) {
+            console.warn("Skipping non-image DICOM:", fileName)
+            continue
+          }
+          const bitsAllocated = dataSet.uint16("x00280100") || 16
+          let pixelData;
 
-        parsedSlices.push({
-          rows,
-          cols,
-          pixelData,
-          instanceNumber,
-          filePath: filePaths[i],
-          fileName
-        });
+          if (bitsAllocated === 16) {
+            pixelData = new Uint16Array(
+              dataSet.byteArray.buffer,
+              pixelElement.dataOffset,
+              pixelElement.length / 2
+            )
+          } else {
+            pixelData = new Uint8Array(
+              dataSet.byteArray.buffer,
+              pixelElement.dataOffset,
+              pixelElement.length
+            )
+}
+
+          parsedSlices.push({
+            rows,
+            cols,
+            pixelData,
+            instanceNumber,
+            filePath: filePaths[i],
+            fileName
+          });
+        }
+
+        // Sort slices by InstanceNumber
+        parsedSlices.sort((a, b) => a.instanceNumber - b.instanceNumber);
+
+        setSlices(parsedSlices);
+        setCurrentIndex(0);
+      } catch (err) {
+        console.log("Stack error:",err)
       }
-
-      // Sort slices by InstanceNumber
-      parsedSlices.sort((a, b) => a.instanceNumber - b.instanceNumber);
-
-      setSlices(parsedSlices);
-      setCurrentIndex(0);
     };
 
     loadDicoms();

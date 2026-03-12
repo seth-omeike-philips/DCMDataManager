@@ -1,6 +1,9 @@
 import React, { useState } from "react"
 import EditTagsModal from "./EditTagsModal"
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
+import { useFileContext} from "../context/FileContext"
+import { useModal } from "@/context/ModalContext"
+
 
 interface NavbarProps {
   dataSet: Record<string, BaseDicomMetadata>
@@ -10,7 +13,8 @@ interface NavbarProps {
 const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
   const [showModal, setShowModal] = useState(false)
   const [exportStatus, setExportStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
-
+  const {uploadRoot} = useFileContext();
+  const { openModal } = useModal()
   const handleEditTags = () => {
     if (!dataSet) return
     setShowModal(true)
@@ -28,10 +32,15 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
       setExportStatus("loading")
 
       // Export
-      const result = await window.api.writeDicom(dataSet)
+      const result = await window.api.writeDicom(dataSet, uploadRoot)
 
       if (result?.success) {
         setExportStatus("success")
+        openModal({
+          type: "success",
+          title: "Export Successful",
+          message: `Files exported to:\n${uploadRoot}`
+        })
 
         setTimeout(() => {
           setExportStatus("idle")
@@ -89,6 +98,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
             >
               ✔ Exported
             </button>
+            
           )}
 
           {exportStatus === "error" && (

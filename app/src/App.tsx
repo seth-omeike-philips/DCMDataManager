@@ -3,14 +3,21 @@ import DicomViewer from "./components/DicomViewer"
 import { Routes, Route } from "react-router-dom"
 import { FileContext } from "./context/FileContext"
 import UploadPage from "./components/UploadPage"
+import { ModalProvider } from "./context/ModalContext"
 
 const App: React.FC = () => {
   const [filePaths, setFilePaths] = useState<string[]|null>(null);
-
+  const [uploadRoot, setUploadRoot] = useState<string | null>(null);
+  
   const value = useMemo(
-  () => ({ filePaths, setFilePaths }),
-  [filePaths]
-);
+  () => ({
+    filePaths,
+    setFilePaths,
+    uploadRoot,
+    setUploadRoot
+  }),
+  [filePaths, uploadRoot]
+)
 
   return (
     <div className="h-screen w-screen flex flex-col items-center justify-center overflow-hidden bg-gradient-to-br from-slate-900 to-slate-800 text-white ">
@@ -22,12 +29,14 @@ const App: React.FC = () => {
       </header>
 
       <main className="w-full flex-1 flex items-center justify-center p-8">
-        <FileContext.Provider value={value}>
-          <Routes>
-            <Route path="/" element={<UploadPage />} />
-            <Route path="/viewer" element={<DicomViewer />} />
-          </Routes>
-        </FileContext.Provider>
+        <ModalProvider>
+          <FileContext.Provider value={value}>
+            <Routes>
+              <Route path="/" element={<UploadPage />} />
+              <Route path="/viewer" element={<DicomViewer />} />
+            </Routes>
+          </FileContext.Provider>
+        </ModalProvider>
       </main>
     </div>
   )

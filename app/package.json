@@ -3,6 +3,7 @@
   "productName": "Philips DICOM Data Manager",
   "private": true,
   "version": "0.0.0",
+  "author": "Seth Omeike <seth.omeike@philips.com> (https://johndoe.dev)",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build && electron-builder",

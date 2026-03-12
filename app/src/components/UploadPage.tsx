@@ -1,7 +1,7 @@
 import React, { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { BaseDicomMetadata } from "../types/BaseDicomMetadata"
-import { useFileContext } from "../context/FileContext"
+import { useFileContext} from "../context/FileContext"
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert } from "@/components/ui/alert"
@@ -23,6 +23,7 @@ const UploadPage: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState<LoadingMessage>("Finding DICOM Files")
   const [errorMessage, setErrorMessage] = useState<ErrorMessage>()
+  const {setUploadRoot} = useFileContext();
 
   const handleNavigation = (fileData: Record<string, BaseDicomMetadata>): void => {
     navigate("/viewer", { state: { fileData } })
@@ -165,22 +166,57 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
     processFilesFromArray(dicomFiles)
   }
 
+  const getCommonPath = (files: FileList): string => {
+    if (files.length === 0) return ""
+
+    const pathArrays: string[][] = []
+
+    // Convert each path into an array of directories
+    for (let i = 0; i < files.length; i++) {
+      const fullPath = (files.item(i) as any).path as string
+
+      // remove filename
+      const dirPath = fullPath.substring(0, fullPath.lastIndexOf("\\"))
+
+      pathArrays.push(dirPath.split("\\"))
+    }
+
+    const firstPath = pathArrays[0]
+    const commonParts: string[] = []
+
+    for (let i = 0; i < firstPath.length; i++) {
+      const segment = firstPath[i]
+
+      const allMatch = pathArrays.every(parts => parts[i] === segment)
+
+      if (!allMatch) break
+
+      commonParts.push(segment)
+    }
+
+    return commonParts.join("\\")
+  }
+
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return
 
     try {
+      const firstFile = e.target.files[0]
+      const root = getCommonPath(e.target.files)
+      setUploadRoot(root)
+      console.log("Root path:",root)
 
-    
-    setLoadingMessage("Finding DICOM Files")
-    const start =new Date();
-    await processFiles(e.target.files)
-    const end = new Date();
-    const elapsedMs = (end.getTime() - start.getTime()) 
-    console.log(`Elapsed seconds: ${elapsedMs/1000}`)
+      
+      setLoadingMessage("Finding DICOM Files")
+      const start =new Date();
+      await processFiles(e.target.files)
+      const end = new Date();
+      const elapsedMs = (end.getTime() - start.getTime()) 
+      console.log(`Elapsed seconds: ${elapsedMs/1000}`)
 
     } catch (error:any) {
-      setLoading(false)
-      setErrorMessage({errorStatus: true,message: String(error)})
+        setLoading(false)
+        setErrorMessage({errorStatus: true,message: String(error)})
     }
   }
 

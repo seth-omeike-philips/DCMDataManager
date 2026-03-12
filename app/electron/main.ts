@@ -139,7 +139,7 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
         dicomData.dict["00080005"].Value
       ) {
         dicomData.dict["00080005"].Value = ["ISO_IR 192"]
-      }
+      } 
 
       
 
@@ -152,7 +152,7 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
   )
   return fileDataset
 })
-// IPC handler to read file as ArrayBuffer for CornerstoneJS
+
 ipcMain.handle(
   "read-multiple-files",
   async (_event, filePaths: string[]): Promise<ArrayBuffer[]> => {
@@ -165,63 +165,75 @@ ipcMain.handle(
           buffer.byteOffset + buffer.byteLength
         )
       })
-    )
+    ) 
   }
 )
 
 
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
-ipcMain.handle("write-dicom",async (_event,modifiedDatasets: Record<string, BaseDicomMetadata>
+ipcMain.handle("write-dicom",async (_event,modifiedDatasets: Record<string, BaseDicomMetadata>, uploadRoot:string|null
   ):Promise<ExportResult> => {
     try {
 
-      // Under the assumption that all filePaths are the same
-      const splitFilePath = Object.keys(modifiedDatasets)[0].split("\\")
-      // Remove the .dcm name from the filePath
-      splitFilePath.pop()
-      const exportFolder = splitFilePath.join("\\")+"_DelD"
-      console.log("ExportFolder: ",exportFolder)
+      if (!uploadRoot) {
+        return { success: false, error:"need upload root" }
+      }
 
-      // Create export folder if it doesn't exist
+      const exportFolder = uploadRoot + "_DelD"
+      
+      console.log("ExportFolder:", exportFolder)
+
       await fs.promises.mkdir(exportFolder, { recursive: true })
 
       const writePromises = Object.entries(modifiedDatasets).map(
         async ([filePath, modifiedDataset]) => {
-          const fileName = filePath.split("\\").pop()
-          if (fileName === undefined) return
+          try {
+            const fileName = path.basename(filePath)
+            if (fileName === undefined) return Promise.resolve()
 
-          const curOutputPath = path.join(exportFolder, fileName)
-          const originalDicom = dicomStore[filePath]
+            const originalDicom = dicomStore[filePath]
+            const dicomCopy = dcmjs.data.DicomMessage.readFile(originalDicom.write())
+            
 
-          for (const key of Object.keys(modifiedDataset) as (keyof BaseDicomMetadata)[]) {
+            for (const key of Object.keys(modifiedDataset) as (keyof BaseDicomMetadata)[]) {
 
-            const tagInfo = dcmjs.data.DicomMetaDictionary.nameMap[key]
-            if (!tagInfo) continue
+              const tagInfo = dcmjs.data.DicomMetaDictionary.nameMap[key]
+              if (!tagInfo) continue
 
-            const tagCode = tagInfo.tag.replace(/[(),]/g, "")
-            const element = originalDicom.dict[tagCode]
+              const tagCode = tagInfo.tag.replace(/[(),]/g, "")
+              const element = dicomCopy.dict[tagCode]
 
-            const value = modifiedDataset[key]
-            // Catches both null & undefined values 
-            if (value == null) {
-              delete originalDicom.dict[tagCode]
+              const value = modifiedDataset[key]
+              // Catches both null & undefined values 
+              if (value == null && element) {
+                delete dicomCopy.dict[tagCode]
+                continue
+              }
+              if (!element) continue
+
+              if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue
+
+              element.Value = Array.isArray(value) ? value : [value]
             }
 
-            if (!element) continue
-            if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue
+            const buffer = dicomCopy.write()
 
-            element.Value = Array.isArray(value) ? value : [value]
+            const relativePath = path.relative(uploadRoot, filePath)
+            const curOutputPath = path.join(exportFolder, relativePath)
+            
+            await fs.promises.mkdir(path.dirname(curOutputPath), { recursive: true })
+
+            await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
+
+          } catch (err) {
+            console.error("Failed writing:", filePath, err)
           }
-
-          const buffer = originalDicom.write()
-
-          await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
         }
       )
 
       await Promise.all(writePromises)
 
-      return { success: true }
+      return { success: true, exportPath: exportFolder }
 
     } catch (error) {
       console.error("Export failed:", error)

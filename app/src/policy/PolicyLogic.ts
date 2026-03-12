@@ -1,5 +1,6 @@
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata";
 import { TagFunctions } from "@/types/TagFunctions";
+import { NonEditableTags } from "./NonEditableTags";
 
 function simpleDeterministicHash(input: string): string {
   let hash = 0
@@ -138,6 +139,10 @@ export const policyLogicFunction = (
 
       const dicomKey = key as keyof BaseDicomMetadata
       const action = tagActions[dicomKey]
+
+      // If dicomKey is in our nonEditablePolicy, continue
+      if (NonEditableTags.has(dicomKey)) continue
+
 
       // This ensures type safety for the tag functions, since each function expects a specific 
       // subset of keys. For example, HASH and GENERATE_UID only work on string keys, 
