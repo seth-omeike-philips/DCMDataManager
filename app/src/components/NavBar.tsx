@@ -34,12 +34,12 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
       // Export
       const result = await window.api.writeDicom(dataSet, uploadRoot)
 
-      if (result?.success) {
+      if (result.success && result.exportPath) {
         setExportStatus("success")
         openModal({
           type: "success",
           title: "Export Successful",
-          message: `Files exported to:\n${uploadRoot}`
+          message: `Files exported to:\n${result.exportPath}`
         })
 
         setTimeout(() => {

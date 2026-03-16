@@ -6,6 +6,8 @@ import { ProcessingState } from "./ProcessingState"
 import { NonEditableTags } from "@/policy/NonEditableTags"
 import Draggable from "react-draggable"
 import { UploadedProfile } from "@/types/UploadedProfile"
+import { useModal } from "@/context/ModalContext"
+import UploadProfileHelp from "./UploadProfileHelp"
 
 interface Props {
   dataSet: Record<string, BaseDicomMetadata>
@@ -15,14 +17,14 @@ interface Props {
 const defaultPolicy: Record<string, Record<keyof BaseDicomMetadata, Tag>> = basePolicyLogic
 
 
-
-
 const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
 
     const [profile, setProfile] = useState<string>("ANONYMIZE")
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
     
     const [policyLogic, setPolicyLogic] = useState(defaultPolicy)
+    const {openModal} = useModal();
+
     const nodeRef = useRef<HTMLDivElement>(null)
     const handleTagChange = (
         key: keyof BaseDicomMetadata,
@@ -65,20 +67,32 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
     }
 
     const handleUploadProfile = async (file: File) => {
-        const text = await file.text()
-        console.log(text)
-        const parsed: UploadedProfile = JSON.parse(text)
+        try {
 
-        const { profileName, tags } = parsed
+            const text = await file.text()
+            console.log(text)
+            const parsed: UploadedProfile = JSON.parse(text)
 
-        setPolicyLogic(prev => ({
-        ...prev,
-        [profileName]: {
-            ...prev[profileName],
-            ...tags
+            const { profileName, tags } = parsed
+
+            if (!profileName || !tags) {
+                throw new Error("JSON file is missing profileName or tags.")
+            }
+            setPolicyLogic(prev => ({
+            ...prev,
+            [profileName]: {
+                ...prev[profileName],
+                ...tags
+            }
+            }))
+            setProfile(profileName)
+        } catch (err) {
+            openModal({
+                type: "error",
+                title: "Error Reading Profile",
+                message: `Profile is in the wrong format.\n${err}`
+            })
         }
-        }))
-        setProfile(profileName)
     }
 
   return (
@@ -134,19 +148,21 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
 
                     {/* Actions */}
                     <div className="flex items-center gap-4">
-
-                        <label className="px-3 py-2 bg-gray-200 rounded-lg cursor-pointer hover:bg-gray-300 text-sm font-medium">
-                            Upload Profile
-                            <input
-                                type="file"
-                                accept=".json"
-                                className="hidden"
-                                onChange={(e) => {
-                                const file = e.target.files?.[0];
-                                if (file) handleUploadProfile(file);
-                                }}
-                            />
-                        </label>
+                        <div className="relative rounded p-4">
+                            <UploadProfileHelp />
+                            <label className="px-3 py-2 bg-gray-200 rounded-lg cursor-pointer hover:bg-gray-300 text-sm font-medium">
+                                Upload Profile
+                                <input
+                                    type="file"
+                                    accept=".json"
+                                    className="hidden"
+                                    onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUploadProfile(file);
+                                    }}
+                                />
+                            </label>
+                        </div>
 
                         <button
                         onClick={handleSubmit}

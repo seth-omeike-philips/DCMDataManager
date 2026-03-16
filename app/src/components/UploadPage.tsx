@@ -6,23 +6,20 @@ import { useFileContext} from "../context/FileContext"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Alert } from "@/components/ui/alert"
 import { Loader2 } from "lucide-react"
-
+import { useModal } from "@/context/ModalContext"
 
 type LoadingMessage = "Reading metadata and sorting slices" | "Finding DICOM Files"
-interface ErrorMessage {
-  errorStatus: boolean
-  message: string
-} 
+
 
 const UploadPage: React.FC = () => {
   const { setFilePaths } = useFileContext()
   const navigate = useNavigate()
+  const {openModal} = useModal();
 
   const [loading, setLoading] = useState(false)
   const [fileCount, setFileCount] = useState(0)
   const [isDragging, setIsDragging] = useState(false)
   const [loadingMessage, setLoadingMessage] = useState<LoadingMessage>("Finding DICOM Files")
-  const [errorMessage, setErrorMessage] = useState<ErrorMessage>()
   const {setUploadRoot} = useFileContext();
 
   const handleNavigation = (fileData: Record<string, BaseDicomMetadata>): void => {
@@ -143,7 +140,7 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
   const processFilesFromArray = async (file:File[]) => {
     if (file.length ===0) {
       setLoading(false)
-      throw new Error("No DCM Files Found")
+      throw new Error("No DICOM files were found in the selected folder.")
     }
 
     const filePaths = file.map(file => file.path);
@@ -163,7 +160,7 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
   const processFiles = async (fileList: FileList) => {
     setLoading(true)
     const dicomFiles = await getDicomFilesFromFolder(fileList, MAX_DEPTH);
-    processFilesFromArray(dicomFiles)
+    await processFilesFromArray(dicomFiles)
   }
 
   const getCommonPath = (files: FileList): string => {
@@ -198,10 +195,11 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
   }
 
   const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (!e.target.files || e.target.files.length === 0) return
-
     try {
-      const firstFile = e.target.files[0]
+      if (!e.target.files || e.target.files.length === 0) {
+        throw new Error("Empty Folder");
+      }
+
       const root = getCommonPath(e.target.files)
       setUploadRoot(root)
       console.log("Root path:",root)
@@ -214,9 +212,14 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
       const elapsedMs = (end.getTime() - start.getTime()) 
       console.log(`Elapsed seconds: ${elapsedMs/1000}`)
 
-    } catch (error:any) {
+    } catch (error) {
+        console.log("error caught")
         setLoading(false)
-        setErrorMessage({errorStatus: true,message: String(error)})
+        openModal({
+                type: "error",
+                title: String(error),
+                message: `Unable to read folder`
+            })
     }
   }
 
@@ -279,7 +282,11 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
 
     } catch (error:any) {
       setLoading(false)
-      setErrorMessage({errorStatus: true,message: String(error)})
+      openModal({
+                type: "error",
+                title: String(error),
+                message: `Unable to read folder`
+            })
     }
   }
 
@@ -328,14 +335,6 @@ const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH)
                 {/**@ts-ignore */}
                 <input id="fileInput" type="file" webkitdirectory="" directory=""  multiple className="hidden" onChange={handleFileInput}
                 />
-
-                {errorMessage?.errorStatus && (
-                  <div className="flex flex-col items-center justify-center py-12 space-y-6">
-                    <div className="text-sm text-muted-foreground text-red-500">
-                      Error {errorMessage.message}
-                    </div>
-                  </div>
-                )}
               </div>
             </>
           ) : (

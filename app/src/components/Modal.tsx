@@ -37,7 +37,7 @@ const Modal: React.FC<Props> = ({ type, title, message, closeModal }) => {
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center"
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-[100]"
       onClick={closeModal}
     >
       <div
@@ -56,7 +56,7 @@ const Modal: React.FC<Props> = ({ type, title, message, closeModal }) => {
           <h2 className="text-lg font-semibold">{title}</h2>
           <button
             onClick={closeModal}
-            className="text-slate-400 hover:text-white"
+            className="text-slate-900 hover:bg-slate-300"
           >
             ✕
           </button>
