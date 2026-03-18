@@ -5,6 +5,8 @@ import { registerPhilipsDictionary } from '../src/types/PhilipsDictionary';
 import { BaseDicomMetadata } from "../src/types/BaseDicomMetadata";
 import { dialog } from "electron"
 import { Menu } from "electron"
+import crypto from "crypto";
+
 
 import fs from "fs";
 import dcmjs from "dcmjs";
@@ -12,6 +14,7 @@ import path from 'node:path'
 import { dicomStore } from '../src/storage/DicomStore';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
+
 
 // The built directory structure
 //
@@ -173,72 +176,67 @@ ipcMain.handle(
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
 ipcMain.handle("write-dicom",async (_event,modifiedDatasets: Record<string, BaseDicomMetadata>, uploadRoot:string|null
   ):Promise<ExportResult> => {
-    try {
 
-      if (!uploadRoot) {
-        return { success: false, error:"need upload root" }
-      }
-
-      const exportFolder = uploadRoot + "_DelD"
-      
-      console.log("ExportFolder:", exportFolder)
-
-      await fs.promises.mkdir(exportFolder, { recursive: true })
-
-      const writePromises = Object.entries(modifiedDatasets).map(
-        async ([filePath, modifiedDataset]) => {
-          try {
-            const fileName = path.basename(filePath)
-            if (fileName === undefined) return Promise.resolve()
-
-            const originalDicom = dicomStore[filePath]
-            const dicomCopy = dcmjs.data.DicomMessage.readFile(originalDicom.write())
-            
-
-            for (const key of Object.keys(modifiedDataset) as (keyof BaseDicomMetadata)[]) {
-
-              const tagInfo = dcmjs.data.DicomMetaDictionary.nameMap[key]
-              if (!tagInfo) continue
-
-              const tagCode = tagInfo.tag.replace(/[(),]/g, "")
-              const element = dicomCopy.dict[tagCode]
-
-              const value = modifiedDataset[key]
-              // Catches both null & undefined values 
-              if (value == null && element) {
-                delete dicomCopy.dict[tagCode]
-                continue
-              }
-              if (!element) continue
-
-              if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue
-
-              element.Value = Array.isArray(value) ? value : [value]
-            }
-
-            const buffer = dicomCopy.write()
-
-            const relativePath = path.relative(uploadRoot, filePath)
-            const curOutputPath = path.join(exportFolder, relativePath)
-            
-            await fs.promises.mkdir(path.dirname(curOutputPath), { recursive: true })
-
-            await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
-
-          } catch (err) {
-            console.error("Failed writing:", filePath, err)
-          }
-        }
-      )
-
-      await Promise.all(writePromises)
-
-      return { success: true, exportPath: exportFolder }
-
-    } catch (error) {
-      console.error("Export failed:", error)
-      return { success: false, error: String(error) }
+    if (!uploadRoot) {
+      return { success: false, error:"need upload root" }
     }
+
+    const exportFolder = uploadRoot + "_DelD"
+    
+    console.log("ExportFolder:", exportFolder)
+
+    await fs.promises.mkdir(exportFolder, { recursive: true })
+
+    const writePromises = Object.entries(modifiedDatasets).map(
+      async ([filePath, modifiedDataset]) => {
+        try {
+          const fileName = path.basename(filePath)
+          if (fileName === undefined) return Promise.resolve()
+
+          const originalDicom = dicomStore[filePath]
+          const dicomCopy = dcmjs.data.DicomMessage.readFile(originalDicom.write())
+          
+
+          for (const key of Object.keys(modifiedDataset) as (keyof BaseDicomMetadata)[]) {
+
+            const tagInfo = dcmjs.data.DicomMetaDictionary.nameMap[key]
+            if (!tagInfo) continue
+
+            const tagCode = tagInfo.tag.replace(/[(),]/g, "")
+            const element = dicomCopy.dict[tagCode]
+
+            const value = modifiedDataset[key]
+            // Catches both null & undefined values 
+            if (value == null && element) {
+              delete dicomCopy.dict[tagCode]
+              continue
+            }
+            if (!element) continue
+
+            if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue
+
+            element.Value = Array.isArray(value) ? value : [value]
+          }
+
+          const buffer = dicomCopy.write()
+
+          const relativePath = path.relative(uploadRoot, filePath)
+          const curOutputPath = path.join(exportFolder, relativePath)
+          
+          await fs.promises.mkdir(path.dirname(curOutputPath), { recursive: true })
+
+          await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
+
+        } catch (err) {
+          console.error("Failed writing:", filePath, err)
+          throw new Error(`Failed writing ${filePath}: ${err}`);
+        }
+      }
+    )
+
+    await Promise.all(writePromises)
+    
+    return { success: true, exportPath: exportFolder }
   }
 )
 
@@ -256,3 +254,8 @@ ipcMain.handle("select-export-folder", async ():Promise<ExportFolderResult> => {
     folderPath: result.filePaths[0]
   }
 })
+
+ipcMain.handle("hash-deterministic", async (_events, value:string):Promise<String> => {
+  return crypto.createHash("sha256").update(value).digest("hex");
+})
+// Account for VR_Limits

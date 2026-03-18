@@ -33,7 +33,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
 
       // Export
       const result = await window.api.writeDicom(dataSet, uploadRoot)
-
+      console.log(result)
       if (result.success && result.exportPath) {
         setExportStatus("success")
         openModal({
@@ -51,8 +51,12 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
       }
 
     } catch (err) {
-      console.error(err)
       setExportStatus("error")
+      openModal({
+          type: "error",
+          title: "Export Failed",
+          message: `${err}`
+      })
       setTimeout(() => {
           setExportStatus("idle")
         }, 2000)
@@ -116,6 +120,22 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
           >
             Back
           </button>
+          {/**
+           * 
+           
+          <button
+            onClick={() => {
+                openModal({
+                type: "info",
+                title: "Export Successful",
+                message:"Alr bo who even believes this"
+              })
+            }}
+            className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition"
+          >
+            Test Modal
+          </button>
+          */}
         </div>
       </div>
 

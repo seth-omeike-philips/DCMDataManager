@@ -33,8 +33,10 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("write-dicom", metadata, uploadRoot),
   selectExportFolder: ():Promise<ExportFolderResult> =>
     ipcRenderer.invoke("select-export-folder"),
-})
+  hash: (value: string):Promise<String> =>
+    ipcRenderer.invoke("hash-deterministic",value)
 
+})
 
 contextBridge.exposeInMainWorld("electronAPI", {
   readMultipleFiles: (filePaths: string[]) =>

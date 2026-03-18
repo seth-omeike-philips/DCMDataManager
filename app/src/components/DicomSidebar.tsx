@@ -327,7 +327,22 @@ const DicomSidebar: React.FC<DicomSidebarProps> = ({
                 )
               })
               :
-              Object.entries(tags).sort().map(([key, value]) => {
+              Object.entries(tags)
+                .sort((a, b) => {
+                const isTag = (k: string) => /^[0-9A-Fa-f]{8}$/.test(k)
+
+                const aIsTag = isTag(a[0])
+                const bIsTag = isTag(b[0])
+
+                // Alphabetical keys first
+                if (!aIsTag && bIsTag) return -1    
+                if (aIsTag && !bIsTag) return 1
+
+                // If both same type, sort normally
+                return a[0].localeCompare(b[0])
+                })
+                .filter(key => key[0] != "_vrMap")
+                .map(([key, value]) => {
                 if (value === undefined) return null
 
                 return (

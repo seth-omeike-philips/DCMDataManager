@@ -79,11 +79,11 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
                 throw new Error("JSON file is missing profileName or tags.")
             }
             setPolicyLogic(prev => ({
-            ...prev,
-            [profileName]: {
-                ...prev[profileName],
-                ...tags
-            }
+                ...prev,
+                [profileName]: {
+                    ...prev[profileName],
+                    ...tags
+                }
             }))
             setProfile(profileName)
         } catch (err) {
@@ -92,6 +92,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
                 title: "Error Reading Profile",
                 message: `Profile is in the wrong format.\n${err}`
             })
+            return;
         }
     }
 
@@ -157,8 +158,9 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
                                     accept=".json"
                                     className="hidden"
                                     onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleUploadProfile(file);
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadProfile(file);
+                                        e.target.value = "";
                                     }}
                                 />
                             </label>

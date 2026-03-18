@@ -2,30 +2,28 @@ import { BaseDicomMetadata } from "@/types/BaseDicomMetadata";
 import { TagFunctions } from "@/types/TagFunctions";
 import { NonEditableTags } from "./NonEditableTags";
 
-function simpleDeterministicHash(input: string): string {
-  let hash = 0
-  for (let i = 0; i < input.length; i++) {
-    const chr = input.charCodeAt(i)
-    hash = (hash << 5) - hash + chr
-    hash |= 0
-  }
-
-  return Math.abs(hash).toString()
-}
-
 // We will need functions for each of the tags 
+
+const hashDeterministic = async (value:string):Promise<string> => {
+  const hashedValue = await window.api.hash(value);
+  return hashedValue.toString();
+
+}
 
 const tagFunctions: TagFunctions  = {
     REMOVE: (dataset,key):void => {
         dataset[key] = undefined;
     },
-    HASH: (dataset,key):void =>{
+    HASH: async (dataset,key):Promise<void> =>{
         const value = dataset[key]
+        if (!value) {
+          return 
+        }
         if (typeof value !== "string") {
             console.warn(`Expected a string value for hashing, but got ${typeof value} for key ${key}, value: ${value}. Skipping hashing.`)
             return
         }
-        dataset[key] = simpleDeterministicHash(value)
+        dataset[key] = await hashDeterministic(value)
     },
     GENERATE_UID:(dataset,key):void => {
         // Generate a UID (simplified example)
@@ -37,7 +35,7 @@ const tagFunctions: TagFunctions  = {
     // We will most likely need to pass in some additional parameters for the MAP function, 
     // such as a mapping dictionary or a callback function to determine the new value based
     //  on the old value. For now, we will just leave it as a placeholder.
-    MAP: (dataset,key):void => {
+    MAP: async (dataset,key):Promise<void> => {
         if (key === "PatientName") {
           const value = dataset[key]
 
@@ -47,16 +45,18 @@ const tagFunctions: TagFunctions  = {
           }
 
           if (Array.isArray(value) && value.every(v => typeof v === "object" && "Alphabetic" in v)) {
-            dataset[key] = value.map(v => {
-              if (typeof v.Alphabetic !== "string") {
-                return v // or return a safe fallback
-              }
+            dataset[key] = await Promise.all(
+                value.map(async v => {
+                if (typeof v.Alphabetic !== "string") {
+                  return v // or return a safe fallback
+                }
 
-              return {
-                ...v,
-                Alphabetic: simpleDeterministicHash(v.Alphabetic)
-              }
-            })
+                return {
+                  ...v,
+                  Alphabetic: await hashDeterministic(v.Alphabetic)
+                }
+              })
+            )
           } else {
             console.warn(
               `Expected an array of objects with an Alphabetic property for mapping PatientName, but got ${JSON.stringify(value)}. Skipping mapping.`
