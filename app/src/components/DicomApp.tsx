@@ -1,12 +1,13 @@
 import React, { useState } from "react"
 
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { useFileContext } from "@/context/FileContext"
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
-import Navbar from "./NavBar"
-import DicomStackViewer from "./DicomStackViewer"
-import DicomSidebar from "./DicomSidebar"
+
 import { useModal } from "@/context/ModalContext"
+import { Loader2 } from "lucide-react"
+import MainApp from "./MainApp"
+import UploadCard from "./UploadCard"
+import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
 
 
 
@@ -20,6 +21,7 @@ const DicomApp: React.FC = () => {
     const [isAllFilesAvailable, setIsAllFilesAvailable] = useState<boolean>(false);
     const [fileCount, setFileCount] = useState(0)
     const [isDragging, setIsDragging] = useState(false)
+    const [isLoading, setIsLoading] = useState<boolean>(false);
     const MAX_DEPTH = 2;
 
     const [dataSet, setDataSet] = useState<Record<string, BaseDicomMetadata>>({})
@@ -63,7 +65,7 @@ const DicomApp: React.FC = () => {
         })
         setFilePaths(filePaths)
         setDataSet(results);
-        setIsAllFilesAvailable(true);
+        
 
     }
     const isDicomFile = async (file: File): Promise<boolean> => {
@@ -105,6 +107,7 @@ const DicomApp: React.FC = () => {
         const dicomFiles = await getDicomFilesFromFolder(fileList, MAX_DEPTH);
         setFileCount(dicomFiles.length);
         await processFilesFromArray(dicomFiles);
+        setIsAllFilesAvailable(true);
     }
 
     const getCommonPath = (files: FileList): string => {
@@ -146,16 +149,21 @@ const DicomApp: React.FC = () => {
 
         
         
-        
+        setIsLoading(true);
+        await new Promise(requestAnimationFrame);
+
         await fetchFirstFile(e.target.files, MAX_DEPTH);
 
+        
+        setIsFileUploaded(true);
+        setIsLoading(false);
         
         const start =new Date();
         await processFiles(e.target.files)
         const end = new Date();
         const elapsedMs = (end.getTime() - start.getTime()) 
         console.log(`Elapsed seconds: ${elapsedMs/1000}`)
-        
+
         const root = getCommonPath(e.target.files)
         setUploadRoot(root)
         console.log("Root path:",root)
@@ -171,6 +179,7 @@ const DicomApp: React.FC = () => {
     }
 
     const fetchFirstFile = async (fileList: FileList, maxDepth: number):Promise<void> => {  
+        console.log("isLoading:",isLoading)
         for (const file of Array.from(fileList)) {
             // Calculate depth from webkitRelativePath
             const pathDepth = file.webkitRelativePath.split("/").length - 1; // -1 for file itself
@@ -187,7 +196,7 @@ const DicomApp: React.FC = () => {
         setFileCount(1);
         const results = await window.api.readDicom([filePath])
         setDataSet(results);
-        setIsFileUploaded(true);
+        
         setFilePaths([filePath])
         console.log(results);
     }
@@ -305,66 +314,53 @@ const DicomApp: React.FC = () => {
         }
     }
 
+    if (isLoading) {
+        return (
+            <div className="h-screen w-screen bg-muted/30 flex items-center justify-center">
+                <Card className="w-full max-w-md shadow-2xl rounded-2xl">
+                    <CardHeader>
+                        <CardTitle className="text-2xl font-semibold text-center">
+                            Upload DICOM Study
+                        </CardTitle>
+                    </CardHeader>
+
+                    <CardContent className="flex flex-col items-center justify-center py-10 space-y-4">
+                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+
+                        <div className="text-center space-y-1">
+                            <p className="text-base font-medium">
+                                Grabbing First File
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                                Preparing your study preview...
+                            </p>
+                        </div>
+                    </CardContent>
+                </Card>
+            </div>
+        );
+    }
+
     return (
         <div className="h-screen w-screen bg-muted/30 flex items-center justify-center">
-        {!isFileUploaded ? (
-            <Card className="w-full max-w-2xl shadow-2xl rounded-2xl">
-                <CardHeader>
-                    <CardTitle className="text-2xl font-semibold text-center">
-                        Upload DICOM Study
-                    </CardTitle>
-                </CardHeader>
-
-                <CardContent className="space-y-6">
-                
-                    <div className="text-center text-muted-foreground text-sm">
-                        Upload one or more folders
-                    </div>
-
-                    <div
-                        className={`border-2 border-dashed rounded-xl p-12 text-center transition cursor-pointer
-                        ${isDragging ? "border-primary bg-muted/50" : "hover:bg-muted/40"}
-                        `}
-                        onClick={() =>
-                        document.getElementById("fileInput")?.click()
-                        }
-                        onDragOver={(e) => {
-                        e.preventDefault()
-                        }}
-                        onDragEnter={(e) => {
-                        e.preventDefault()
-                        setIsDragging(true)
-                        }}
-                        onDragLeave={(e) => {
-                        e.preventDefault()
-                        setIsDragging(false)
-                        }}
-                        onDrop={handleDrop}
-                    >
-                        <p className="text-lg font-medium">
-                        Drag & Drop Files Here
-                        </p>
-                        <p className="text-sm text-muted-foreground mt-2">
-                        or click to browse
-                        </p>
-                        {/**@ts-ignore */}
-                        <input id="fileInput" type="file" webkitdirectory="" directory=""  multiple className="hidden" onChange={handleFileInput}
-                        />
-                    </div>
-                </CardContent>
-            </Card>
-            ) : (
-                <div className="flex flex-col w-full h-screen overflow-hidden">
-                    <Navbar dataSet={dataSet} isAllFilesAvailable={isAllFilesAvailable} setIsFileUploaded={setIsFileUploaded}/>
-                    <div className="flex flex-1 overflow-hidden">
-                        
-                        <div className="flex-1 flex items-center justify-center">
-                        <DicomStackViewer setCurSlice={setCurSlice} isAllFilesAvailable={isAllFilesAvailable} />
-                        </div>
-
-                        <DicomSidebar dataSet={dataSet} curSlice={curSlice}/>
-                    </div>
-                </div>
+        {
+        !isFileUploaded ? (
+            <UploadCard
+                isDragging={isDragging}
+                handleFileInput={handleFileInput}
+                setIsDragging={setIsDragging}    
+                handleDrop={handleDrop}
+            />
+            ) : 
+            (
+            <MainApp
+                dataSet={dataSet}
+                curSlice={curSlice}
+                setCurSlice={setCurSlice}
+                isAllFilesAvailable={isAllFilesAvailable}
+                setIsAllFilesAvailable={setIsAllFilesAvailable}
+                setIsFileUploaded={setIsFileUploaded}
+            />
             )}
             
         </div>

@@ -3,17 +3,19 @@ import EditTagsModal from "./EditTagsModal"
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
 import { useFileContext} from "../context/FileContext"
 import { useModal } from "@/context/ModalContext"
+import { Loader2 } from "lucide-react"
 
 
 interface NavbarProps {
   dataSet: Record<string, BaseDicomMetadata>
   isAllFilesAvailable: boolean
+  setIsAllFilesAvailable:React.Dispatch<React.SetStateAction<boolean>>
   setIsFileUploaded: React.Dispatch<React.SetStateAction<boolean>>
 
 }
 
 
-const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsFileUploaded }) => {
+const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsAllFilesAvailable,setIsFileUploaded }) => {
   const [showModal, setShowModal] = useState(false)
   const [exportStatus, setExportStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const {uploadRoot} = useFileContext();
@@ -21,6 +23,11 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsFileU
   const handleEditTags = () => {
     if (!dataSet) return
     setShowModal(true)
+  }
+
+  const handleBack = () => {
+    setIsFileUploaded(false);
+    setIsAllFilesAvailable(false);
   }
 
 
@@ -85,7 +92,10 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsFileU
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
               disabled= {!isAllFilesAvailable}
             >
-              Export
+              {isAllFilesAvailable ?
+               ("Export") :
+                (<Loader2 className="h-5 w-5 animate-spin text-white" />)
+              }
             </button>
           )}
 
@@ -94,7 +104,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsFileU
               disabled
               className="bg-gray-400 text-white px-4 py-2 rounded"
             >
-              Exporting...
+              <Loader2 className="h-10 w-10 animate-spin text-white" />
             </button>
           )}
 
@@ -118,7 +128,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsFileU
           )}
 
           <button
-            onClick={() => setIsFileUploaded(false)}
+            onClick={() => handleBack()}
             className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition"
           >
             Back

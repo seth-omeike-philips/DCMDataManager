@@ -2,12 +2,12 @@ import React, { useState,useRef } from "react"
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
 import { policyLogicFunction } from "@/policy/PolicyLogic"
 import { basePolicyLogic } from "@/policy/BasePolicyLogic"
-import { ProcessingState } from "./ProcessingState"
 import { NonEditableTags } from "@/policy/NonEditableTags"
 import Draggable from "react-draggable"
 import { UploadedProfile } from "@/types/UploadedProfile"
 import { useModal } from "@/context/ModalContext"
 import UploadProfileHelp from "./UploadProfileHelp"
+import { Loader2 } from "lucide-react"
 
 interface Props {
   dataSet: Record<string, BaseDicomMetadata>
@@ -16,12 +16,12 @@ interface Props {
 }
 
 const defaultPolicy: Record<string, Record<keyof BaseDicomMetadata, Tag>> = basePolicyLogic
-
+type Status = "idle"| "success" | "error"
 
 const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable }) => {
 
     const [profile, setProfile] = useState<string>("ANONYMIZE")
-    const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
+    const [status, setStatus] = useState<Status>("idle")
     
     const [policyLogic, setPolicyLogic] = useState(defaultPolicy)
     const {openModal} = useModal();
@@ -42,8 +42,6 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable }
 
     const handleSubmit = async () => {
         try {
-            setStatus("loading")
-
             const entries = Object.values(dataSet)
 
             for (const item of entries) {
@@ -51,14 +49,24 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable }
             }
 
             setStatus("success")
+            openModal({
+                type: "success",
+                title: "Policy Successfully Applied",
+                message:"Your policy has been successfully applied."
+              })
 
             setTimeout(() => {
                 onClose()
                 setStatus("idle")
             }, 1500)
 
-        } catch {
+        } catch (err) {
             setStatus("error")
+            openModal({
+                type: "error",
+                title: "Policy Application Failed",
+                message:`Error: ${err}`
+              })
             setTimeout(() => {
                 onClose()
                 setStatus("idle")
@@ -99,146 +107,142 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable }
 
   return (
     <>
-        {status !== "idle" ? (
-        <ProcessingState
-            status={status}
-            loadingText="Applying policy..."
-            successText="Policy applied. Ready to export."
-            errorText="Processing failed."
-        />
-        ) : (
-        
-        <div
-        className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 text-slate-900"
-        onClick={onClose}
-        >
-        <Draggable nodeRef={nodeRef} cancel="select, option, input, textarea, button" bounds="parent">
-
+        {status !== "idle" ? (""): 
+        (
             <div
-                ref={nodeRef}
-                className="cursor-move bg-white w-[700px] max-h-[80vh] rounded-2xl shadow-xl p-6 overflow-y-auto relative"
-                onClick={e => e.stopPropagation()}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 text-slate-900"
+            onClick={onClose}
             >
-                {/* Close button */}
-                <button
-                onClick={onClose}
-                className="absolute top-4 right-4 text-gray-500 hover:text-black"
+            <Draggable nodeRef={nodeRef} cancel="select, option, input, textarea, button" bounds="parent">
+
+                <div
+                    ref={nodeRef}
+                    className="cursor-move bg-white w-[700px] max-h-[80vh] rounded-2xl shadow-xl p-6 overflow-y-auto relative"
+                    onClick={e => e.stopPropagation()}
                 >
-                ✕
-                </button>
+                    {/* Close button */}
+                    <button
+                    onClick={onClose}
+                    className="absolute top-4 right-4 text-gray-500 hover:text-black"
+                    >
+                    ✕
+                    </button>
 
-                <h2 className="text-xl font-semibold mb-4 modal-drag-handle">
-                Edit Tag Policy
-                </h2>
+                    <h2 className="text-xl font-semibold mb-4 modal-drag-handle">
+                    Edit Tag Policy
+                    </h2>
 
-                {/* Profile Selector */}
-                <div className="mb-6 flex items-center justify-between">
-  
-                    {/* Profile Select */}
-                    <div className="flex items-center gap-2">
-                        <label className="font-medium">Profile:</label>
-                        <select
-                            value={profile}
-                            onChange={(e) => setProfile(e.target.value as string)}
-                            className="border rounded px-3 py-1"
-                            >
-                            {Object.keys(policyLogic).map(profileName => (
-                                    <option key={profileName} >{profileName}</option>                            
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Actions */}
-                    <div className="flex items-center gap-4">
-                        <div className="relative rounded p-4">
-                            <UploadProfileHelp />
-                            <label className="px-3 py-2 bg-gray-200 rounded-lg cursor-pointer hover:bg-gray-300 text-sm font-medium">
-                                Upload Profile
-                                <input
-                                    type="file"
-                                    accept=".json"
-                                    className="hidden"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (file) handleUploadProfile(file);
-                                        e.target.value = "";
-                                    }}
-                                />
-                            </label>
+                    {/* Profile Selector */}
+                    <div className="mb-6 flex items-center justify-between">
+    
+                        {/* Profile Select */}
+                        <div className="flex items-center gap-2">
+                            <label className="font-medium">Profile:</label>
+                            <select
+                                value={profile}
+                                onChange={(e) => setProfile(e.target.value as string)}
+                                className="border rounded px-3 py-1"
+                                >
+                                {Object.keys(policyLogic).map(profileName => (
+                                        <option key={profileName} >{profileName}</option>                            
+                                ))}
+                            </select>
                         </div>
 
-                        <button
-                        onClick={handleSubmit}
-                        className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                        disabled={!isAllFilesAvailable}
-                        >
-                        Apply Policy
-                        </button>
+                        {/* Actions */}
+                        <div className="flex items-center gap-4">
+                            <div className="relative rounded p-4">
+                                <UploadProfileHelp />
+                                <label className="px-3 py-2 bg-gray-200 rounded-lg cursor-pointer hover:bg-gray-300 text-sm font-medium">
+                                    Upload Profile
+                                    <input
+                                        type="file"
+                                        accept=".json"
+                                        className="hidden"
+                                        onChange={(e) => {
+                                            const file = e.target.files?.[0];
+                                            if (file) handleUploadProfile(file);
+                                            e.target.value = "";
+                                        }}
+                                    />
+                                </label>
+                            </div>
+
+                            <button
+                            onClick={handleSubmit}
+                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                            disabled={!isAllFilesAvailable}
+                            >
+                            {isAllFilesAvailable ?
+                            ("Apply Policy") :
+                            (<Loader2 className="h-5 w-5 animate-spin text-white" />)
+                            }
+                            </button>
+                        </div>
                     </div>
-                </div>
 
-                {/* Tag List */}
-                <div className="space-y-3">
-                {Object.keys(
-                    dataSet[Object.keys(dataSet)[0]]
-                )
-                .sort((a, b) => {
-                const isTag = (k: string) => /^[0-9A-Fa-f]{8}$/.test(k)
-
-                const aIsTag = isTag(a)
-                const bIsTag = isTag(b)
-
-                // Alphabetical keys first
-                if (!aIsTag && bIsTag) return -1    
-                if (aIsTag && !bIsTag) return 1
-
-                // If both same type, sort normally
-                return a.localeCompare(b)
-                })
-                .filter(key => !NonEditableTags.has(key))
-                .map(key => {
-                    const typedKey = key as keyof BaseDicomMetadata
-
-                    return (
-                    <div
-                        key={key}
-                        className="flex justify-between items-center"
-                    >
-                        <span className="text-sm font-medium">
-                        {key}
-                        </span>
-
-                        <select value={policyLogic[profile][typedKey] ?? "COULD_NOT_FIND_TAG"}
-                            onChange={e => handleTagChange( typedKey,e.target.value as Tag)}
-                            className="border rounded px-2 py-1"
-                        >
-                            <option value="KEEP">
-                                KEEP
-                            </option>
-                            <option value="REMOVE">
-                                REMOVE
-                            </option>
-                            <option value="HASH">
-                                HASH
-                            </option>
-                            <option value="GENERATE_UID">
-                                GENERATE_UID
-                            </option>
-                            <option value="MAP">
-                                MAP
-                            </option>
-                        </select>
-                    </div>
+                    {/* Tag List */}
+                    <div className="space-y-3">
+                    {Object.keys(
+                        dataSet[Object.keys(dataSet)[0]]
                     )
-                })}
+                    .sort((a, b) => {
+                    const isTag = (k: string) => /^[0-9A-Fa-f]{8}$/.test(k)
+
+                    const aIsTag = isTag(a)
+                    const bIsTag = isTag(b)
+
+                    // Alphabetical keys first
+                    if (!aIsTag && bIsTag) return -1    
+                    if (aIsTag && !bIsTag) return 1
+
+                    // If both same type, sort normally
+                    return a.localeCompare(b)
+                    })
+                    .filter(key => !NonEditableTags.has(key))
+                    .map(key => {
+                        const typedKey = key as keyof BaseDicomMetadata
+
+                        return (
+                        <div
+                            key={key}
+                            className="flex justify-between items-center"
+                        >
+                            <span className="text-sm font-medium">
+                            {key}
+                            </span>
+
+                            <select value={policyLogic[profile][typedKey] ?? "COULD_NOT_FIND_TAG"}
+                                onChange={e => handleTagChange( typedKey,e.target.value as Tag)}
+                                className="border rounded px-2 py-1"
+                            >
+                                <option value="KEEP">
+                                    KEEP
+                                </option>
+                                <option value="REMOVE">
+                                    REMOVE
+                                </option>
+                                <option value="HASH">
+                                    HASH
+                                </option>
+                                <option value="GENERATE_UID">
+                                    GENERATE_UID
+                                </option>
+                                <option value="MAP">
+                                    MAP
+                                </option>
+                            </select>
+                        </div>
+                        )
+                    })}
+                    </div>
+
+
                 </div>
-
-
+            
+            </Draggable>     
             </div>
-        
-        </Draggable>     
-        </div>
-    )}
+        )}
     </>
   )
 }

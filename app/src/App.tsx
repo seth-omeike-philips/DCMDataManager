@@ -1,8 +1,5 @@
 import React, { useMemo, useState } from "react"
-import DicomViewer from "./components/DicomViewer"
-import { Routes, Route } from "react-router-dom"
 import { FileContext } from "./context/FileContext"
-import UploadPage from "./components/UploadPage"
 import { ModalProvider } from "./context/ModalContext"
 import DicomApp from "./components/DicomApp"
 

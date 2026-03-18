@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import dicomParser from "dicom-parser";
 import { useFileContext } from "../context/FileContext";
+import { Loader2 } from "lucide-react"
 
 interface DicomStackViewerProps {
   setCurSlice: React.Dispatch<React.SetStateAction<DicomSlice | undefined>>
@@ -142,9 +143,18 @@ const DicomStackViewer: React.FC<DicomStackViewerProps> = ({ setCurSlice,isAllFi
     <div className="flex flex-col items-center justify-center bg-black h-full overflow-hidden" style={{ overscrollBehavior: "contain" }} onWheel={handleWheel}>
         {slices.length > 0 && (
         <div className="text-white mb-2 text-sm">
-            Slice {currentIndex + 1} / {slices.length}
+            
+            {!isAllFilesAvailable && (
+              <div className="flex items-center justify-between flex-col">
+                <Loader2 className="h-10 w-10 animate-spin text-white" />
+                <h2 className="text-blue-400">Loading remaining DICOM Files...</h2>
+              </div>
+              
+            )}
+            <p className="">Slice {currentIndex + 1} / {slices.length}</p>
             <br />
-            File: {slices[currentIndex]?.fileName}
+            <p className="">File: {slices[currentIndex]?.fileName}</p>
+            
         </div>
         )}
 
