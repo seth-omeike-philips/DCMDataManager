@@ -7,10 +7,13 @@ import { useModal } from "@/context/ModalContext"
 
 interface NavbarProps {
   dataSet: Record<string, BaseDicomMetadata>
+  isAllFilesAvailable: boolean
+  setIsFileUploaded: React.Dispatch<React.SetStateAction<boolean>>
+
 }
 
 
-const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
+const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsFileUploaded }) => {
   const [showModal, setShowModal] = useState(false)
   const [exportStatus, setExportStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const {uploadRoot} = useFileContext();
@@ -19,7 +22,6 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
     if (!dataSet) return
     setShowModal(true)
   }
-
 
 
   const handleExport = async () => {
@@ -81,6 +83,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
             <button
               onClick={handleExport}
               className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition"
+              disabled= {!isAllFilesAvailable}
             >
               Export
             </button>
@@ -115,11 +118,12 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
           )}
 
           <button
-            onClick={() => window.history.back()}
+            onClick={() => setIsFileUploaded(false)}
             className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition"
           >
             Back
           </button>
+
           {/**
            * 
            
@@ -143,6 +147,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet }) => {
         <EditTagsModal
           dataSet={dataSet}
           onClose={() => setShowModal(false)}
+          isAllFilesAvailable={isAllFilesAvailable}
         />
       )}
     </>

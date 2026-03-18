@@ -12,12 +12,13 @@ import UploadProfileHelp from "./UploadProfileHelp"
 interface Props {
   dataSet: Record<string, BaseDicomMetadata>
   onClose: () => void
+  isAllFilesAvailable: boolean
 }
 
 const defaultPolicy: Record<string, Record<keyof BaseDicomMetadata, Tag>> = basePolicyLogic
 
 
-const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
+const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable }) => {
 
     const [profile, setProfile] = useState<string>("ANONYMIZE")
     const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
@@ -169,6 +170,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose }) => {
                         <button
                         onClick={handleSubmit}
                         className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                        disabled={!isAllFilesAvailable}
                         >
                         Apply Policy
                         </button>

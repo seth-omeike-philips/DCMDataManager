@@ -2,11 +2,12 @@ import React, { useEffect, useRef, useState } from "react";
 import dicomParser from "dicom-parser";
 import { useFileContext } from "../context/FileContext";
 
+interface DicomStackViewerProps {
+  setCurSlice: React.Dispatch<React.SetStateAction<DicomSlice | undefined>>
+  isAllFilesAvailable: boolean
+}
 
-
-const DicomStackViewer: React.FC<
-{ setCurSlice: React.Dispatch<React.SetStateAction<DicomSlice | undefined>> }
-> = ({ setCurSlice }) => {
+const DicomStackViewer: React.FC<DicomStackViewerProps> = ({ setCurSlice,isAllFilesAvailable }) => {
   const { filePaths } = useFileContext();
   const canvasRef = useRef<HTMLCanvasElement>(null);
 

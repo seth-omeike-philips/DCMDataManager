@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom"
 import { FileContext } from "./context/FileContext"
 import UploadPage from "./components/UploadPage"
 import { ModalProvider } from "./context/ModalContext"
+import DicomApp from "./components/DicomApp"
 
 const App: React.FC = () => {
   const [filePaths, setFilePaths] = useState<string[]|null>(null);
@@ -31,10 +32,7 @@ const App: React.FC = () => {
       <main className="w-full flex-1 flex items-center justify-center p-8">
         <ModalProvider>
           <FileContext.Provider value={value}>
-            <Routes>
-              <Route path="/" element={<UploadPage />} />
-              <Route path="/viewer" element={<DicomViewer />} />
-            </Routes>
+            <DicomApp/>
           </FileContext.Provider>
         </ModalProvider>
       </main>

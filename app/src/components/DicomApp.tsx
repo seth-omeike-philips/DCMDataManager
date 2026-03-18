@@ -1,0 +1,373 @@
+import React, { useState } from "react"
+
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { useFileContext } from "@/context/FileContext"
+import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
+import Navbar from "./NavBar"
+import DicomStackViewer from "./DicomStackViewer"
+import DicomSidebar from "./DicomSidebar"
+import { useModal } from "@/context/ModalContext"
+
+
+
+const DicomApp: React.FC = () => {
+    const {openModal} = useModal();
+    const { setFilePaths } = useFileContext()
+    const {setUploadRoot} = useFileContext();
+
+
+    const [isFileUploaded, setIsFileUploaded] = useState<boolean>(false);
+    const [isAllFilesAvailable, setIsAllFilesAvailable] = useState<boolean>(false);
+    const [fileCount, setFileCount] = useState(0)
+    const [isDragging, setIsDragging] = useState(false)
+    const MAX_DEPTH = 2;
+
+    const [dataSet, setDataSet] = useState<Record<string, BaseDicomMetadata>>({})
+    const [curSlice, setCurSlice] = useState<DicomSlice | undefined>(undefined);
+
+
+    const asyncPool = async<T,R>(limit:number, items:T[], iteratorFn:(item:T)=> Promise<R>):Promise<R[]> => {
+        const ret: Promise<R>[] = []
+        const executing:Promise<any>[] = []
+
+        for (const item of items) {
+            const p = Promise.resolve().then(()=> iteratorFn(item))
+            ret.push(p)
+
+            if (limit <= items.length) {
+                const e:Promise<any> = p.then(() => executing.splice(executing.indexOf(e),1))
+                executing.push(e)
+
+                if (executing.length >=limit) {
+                await Promise.race(executing)
+                }
+            }
+        }
+
+        return Promise.all(ret)
+    }
+
+
+    const processFilesFromArray = async (file:File[]) => {
+        if (file.length ===0) {
+        throw new Error("No DICOM files were found in the selected folder.")
+        }
+
+        const filePaths = file.map(file => file.path);
+        const results = await window.api.readDicom(filePaths)
+        console.log(results)
+        filePaths.sort((a, b) => {
+        const metaA = results[a]
+        const metaB = results[b]
+        return (metaA.InstanceNumber ?? 0) - (metaB.InstanceNumber ?? 0)
+        })
+        setFilePaths(filePaths)
+        setDataSet(results);
+        setIsAllFilesAvailable(true);
+
+    }
+    const isDicomFile = async (file: File): Promise<boolean> => {
+        if (file.size < 132) return false; // too small to be DICOM
+    
+        const buffer = await file.slice(0, 132).arrayBuffer(); // only read first 132 bytes
+        const view = new DataView(buffer);
+    
+        // Check for "DICM" at byte offset 128
+        const dicm =
+        String.fromCharCode(
+            view.getUint8(128),
+            view.getUint8(129),
+            view.getUint8(130),
+            view.getUint8(131)
+        ) === "DICM";
+    
+        return dicm;
+    };
+    
+    
+    const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH):Promise<File[]> => {
+        const dicomFiles: File[] = [];
+    
+        for (const file of Array.from(fileList)) {
+            // Calculate depth from webkitRelativePath
+            const pathDepth = file.webkitRelativePath.split("/").length - 1; // -1 for file itself
+            if (pathDepth > maxDepth) continue;
+    
+            if (await isDicomFile(file)) {
+            dicomFiles.push(file);
+            
+            };
+        }
+    
+        return dicomFiles;
+    }
+    const processFiles = async (fileList: FileList) => {
+        const dicomFiles = await getDicomFilesFromFolder(fileList, MAX_DEPTH);
+        setFileCount(dicomFiles.length);
+        await processFilesFromArray(dicomFiles);
+    }
+
+    const getCommonPath = (files: FileList): string => {
+        if (files.length === 0) return ""
+
+        const pathArrays: string[][] = []
+
+        // Convert each path into an array of directories
+        for (let i = 0; i < files.length; i++) {
+        const fullPath = (files.item(i) as any).path as string
+
+        // remove filename
+        const dirPath = fullPath.substring(0, fullPath.lastIndexOf("\\"))
+
+        pathArrays.push(dirPath.split("\\"))
+        }
+
+        const firstPath = pathArrays[0]
+        const commonParts: string[] = []
+
+        for (let i = 0; i < firstPath.length; i++) {
+        const segment = firstPath[i]
+
+        const allMatch = pathArrays.every(parts => parts[i] === segment)
+
+        if (!allMatch) break
+
+        commonParts.push(segment)
+        }
+
+        return commonParts.join("\\")
+    }
+
+    const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        try {
+        if (!e.target.files || e.target.files.length === 0) {
+            throw new Error("Empty Folder");
+        }
+
+        
+        
+        
+        await fetchFirstFile(e.target.files, MAX_DEPTH);
+
+        
+        const start =new Date();
+        await processFiles(e.target.files)
+        const end = new Date();
+        const elapsedMs = (end.getTime() - start.getTime()) 
+        console.log(`Elapsed seconds: ${elapsedMs/1000}`)
+        
+        const root = getCommonPath(e.target.files)
+        setUploadRoot(root)
+        console.log("Root path:",root)
+
+        } catch (error) {
+            console.log("error caught")
+            openModal({
+                    type: "error",
+                    title: String(error),
+                    message: `Unable to read folder`
+                })
+        }
+    }
+
+    const fetchFirstFile = async (fileList: FileList, maxDepth: number):Promise<void> => {  
+        for (const file of Array.from(fileList)) {
+            // Calculate depth from webkitRelativePath
+            const pathDepth = file.webkitRelativePath.split("/").length - 1; // -1 for file itself
+            if (pathDepth > maxDepth) continue;
+    
+            if (await isDicomFile(file)) {
+                return await processFirstFile(file.path);
+            };
+        }
+    
+    }
+
+    const processFirstFile = async (filePath:string):Promise<void> => {
+        setFileCount(1);
+        const results = await window.api.readDicom([filePath])
+        setDataSet(results);
+        setIsFileUploaded(true);
+        setFilePaths([filePath])
+        console.log(results);
+    }
+
+    const filterDicomFiles = async (files: File[]):Promise<File[]> => {
+        const results = await asyncPool(20, files, async (file) => {
+            const valid = await isDicomFile(file)
+            return valid ? file : null
+        })
+        return results.filter(Boolean) as File[]
+    }
+    const collectEntries = async(entry: FileSystemEntry,depth: number,maxDepth: number,files: File[]): Promise<void> => {
+        if (depth > maxDepth) return;
+
+        if (entry.isFile) {
+        const fileEntry = entry as FileSystemFileEntry;
+
+        await new Promise<void>((resolve) => {
+            fileEntry.file((file) => {
+            files.push(file);
+            resolve();
+            });
+        });
+        }
+
+        if (entry.isDirectory) {
+        const reader = (entry as FileSystemDirectoryEntry).createReader();
+
+        const readAllEntries = async (): Promise<FileSystemEntry[]> => {
+            const all: FileSystemEntry[] = [];
+
+            while (true) {
+            const batch: FileSystemEntry[] = await new Promise((resolve) =>
+                reader.readEntries(resolve)
+            );
+
+            if (!batch.length) break;
+
+            all.push(...batch);
+            }
+
+            return all;
+        };
+
+        const entries = await readAllEntries();
+
+        console.log("Total entries in directory:", entries.length);
+
+        await Promise.all(
+            entries.map((ent) => collectEntries(ent, depth + 1, maxDepth, files))
+        );
+        }
+    };
+    const handleDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+        e.preventDefault()
+        setIsDragging(false)
+    
+        try {
+    
+        
+        const start =new Date();
+    
+        const items = e.dataTransfer.items
+        const files: File[] = []
+    
+        console.log(`File: ${Array.from(e.dataTransfer.items)}`)
+    
+        const zipFile = Array.from(e.dataTransfer.items).find(file =>
+        file.type === "application/zip" ||
+        file.type === "application/x-zip-compressed" ||
+        file.getAsString.name.toLowerCase().endsWith(".zip")
+        )
+        if (zipFile) throw new Error("Zip files are not supported. Please upload a folder or DICOM files directly.")
+    
+    
+        const start1 = new Date();
+        await Promise.all(
+        Array.from(items).map(async (item) => {
+            const entry = item.webkitGetAsEntry()
+            if (entry) {
+            await collectEntries(entry, 0, MAX_DEPTH, files)
+            }
+        })
+        )
+        const end1 = new Date()
+        console.log(`Length of files collected: ${files.length}`)
+        const elapsedMs1 = (end1.getTime() - start1.getTime()) 
+        console.log(`Elapsed seconds: ${elapsedMs1/1000}`)
+    
+    
+        const start2 = new Date()
+        const dicomFiles = await filterDicomFiles(files)
+        console.log(`Length of files filtered: ${dicomFiles.length}`)
+        const end2 = new Date()
+        const elapsedMs2 = (end2.getTime() - start2.getTime()) 
+        console.log(`Elapsed seconds: ${elapsedMs2/1000}`)
+    
+    
+        const start3 = new Date()
+        await processFilesFromArray(dicomFiles)
+        const end3 = new Date()
+        const elapsedMs3 = (end3.getTime() - start3.getTime()) 
+        console.log(`Elapsed seconds: ${elapsedMs3/1000}`)
+    
+        const end = new Date();
+        const elapsedMs = (end.getTime() - start.getTime()) 
+        console.log(`Elapsed seconds: ${elapsedMs/1000}`)
+    
+        } catch (error:any) {
+            openModal({
+                type: "error",
+                title: String(error),
+                message: `Unable to read folder`
+            })
+        }
+    }
+
+    return (
+        <div className="h-screen w-screen bg-muted/30 flex items-center justify-center">
+        {!isFileUploaded ? (
+            <Card className="w-full max-w-2xl shadow-2xl rounded-2xl">
+                <CardHeader>
+                    <CardTitle className="text-2xl font-semibold text-center">
+                        Upload DICOM Study
+                    </CardTitle>
+                </CardHeader>
+
+                <CardContent className="space-y-6">
+                
+                    <div className="text-center text-muted-foreground text-sm">
+                        Upload one or more folders
+                    </div>
+
+                    <div
+                        className={`border-2 border-dashed rounded-xl p-12 text-center transition cursor-pointer
+                        ${isDragging ? "border-primary bg-muted/50" : "hover:bg-muted/40"}
+                        `}
+                        onClick={() =>
+                        document.getElementById("fileInput")?.click()
+                        }
+                        onDragOver={(e) => {
+                        e.preventDefault()
+                        }}
+                        onDragEnter={(e) => {
+                        e.preventDefault()
+                        setIsDragging(true)
+                        }}
+                        onDragLeave={(e) => {
+                        e.preventDefault()
+                        setIsDragging(false)
+                        }}
+                        onDrop={handleDrop}
+                    >
+                        <p className="text-lg font-medium">
+                        Drag & Drop Files Here
+                        </p>
+                        <p className="text-sm text-muted-foreground mt-2">
+                        or click to browse
+                        </p>
+                        {/**@ts-ignore */}
+                        <input id="fileInput" type="file" webkitdirectory="" directory=""  multiple className="hidden" onChange={handleFileInput}
+                        />
+                    </div>
+                </CardContent>
+            </Card>
+            ) : (
+                <div className="flex flex-col w-full h-screen overflow-hidden">
+                    <Navbar dataSet={dataSet} isAllFilesAvailable={isAllFilesAvailable} setIsFileUploaded={setIsFileUploaded}/>
+                    <div className="flex flex-1 overflow-hidden">
+                        
+                        <div className="flex-1 flex items-center justify-center">
+                        <DicomStackViewer setCurSlice={setCurSlice} isAllFilesAvailable={isAllFilesAvailable} />
+                        </div>
+
+                        <DicomSidebar dataSet={dataSet} curSlice={curSlice}/>
+                    </div>
+                </div>
+            )}
+            
+        </div>
+    )
+}
+export default DicomApp
