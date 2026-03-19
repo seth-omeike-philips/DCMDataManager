@@ -19,7 +19,6 @@ const DicomApp: React.FC = () => {
 
     const [isFileUploaded, setIsFileUploaded] = useState<boolean>(false);
     const [isAllFilesAvailable, setIsAllFilesAvailable] = useState<boolean>(false);
-    const [fileCount, setFileCount] = useState(0)
     const [isDragging, setIsDragging] = useState(false)
     const [isLoading, setIsLoading] = useState<boolean>(false);
     const MAX_DEPTH = 2;
@@ -105,7 +104,6 @@ const DicomApp: React.FC = () => {
     }
     const processFiles = async (fileList: FileList) => {
         const dicomFiles = await getDicomFilesFromFolder(fileList, MAX_DEPTH);
-        setFileCount(dicomFiles.length);
         await processFilesFromArray(dicomFiles);
         setIsAllFilesAvailable(true);
     }
@@ -193,7 +191,6 @@ const DicomApp: React.FC = () => {
     }
 
     const processFirstFile = async (filePath:string):Promise<void> => {
-        setFileCount(1);
         const results = await window.api.readDicom([filePath])
         setDataSet(results);
         
