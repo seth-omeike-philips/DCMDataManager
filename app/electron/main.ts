@@ -12,6 +12,7 @@ import fs from "fs";
 import dcmjs from "dcmjs";
 import path from 'node:path'
 import { dicomStore } from '../src/storage/DicomStore';
+import { Transformation } from '@/policy/PolicyLogic';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -118,6 +119,171 @@ app.whenReady().then(() => {
   createWindow()
 
 })
+
+
+const mapper = (data:BaseDicomMetadata, key:keyof BaseDicomMetadata) => {
+  if (key === "PatientName") {
+    const value = data[key]
+    if (!value) {
+      console.warn(`Expected a value for mapping PatientName, but go. Skipping mapping.`)
+      return ""
+    }
+
+    if (Array.isArray(value) && value.every(v => typeof v === "object" && "Alphabetic" in v)) {
+      const mappedValue = value.map(v => {
+          if (typeof v.Alphabetic !== "string") {
+            return v // or return a safe fallback
+          }
+
+          return {
+            ...v,
+            Alphabetic: crypto.createHash("sha256").update(String(v.Alphabetic ?? "")).digest("hex").slice(0, 64)
+          }
+        })
+      return mappedValue
+
+    } else {
+      console.warn(`Expected an array of objects with an Alphabetic property for mapping PatientName, but got ${JSON.stringify(value)}. Skipping mapping.`)
+      return value; 
+    }
+  }
+
+  else if (key === "PatientID" || key === "OtherPatientIDs") {
+    const value = data[key]
+    if (typeof value !== "string") {
+      console.warn(`Expected a string value for mapping PatientID, but got ${typeof value} for key ${key}, value: ${value}. Skipping mapping.`)
+      return "";
+    }
+    return "Mapped_" + value;
+
+  }
+
+  else if (key === "StudyDate") {
+    const rawDate = data[key]
+    if (typeof rawDate !== "string") {
+      console.warn(`Expected a string rawDate for mapping StudyDate, but got ${typeof rawDate} for key ${key}, rawDate: ${rawDate}. Skipping mapping.`)
+      return "";
+    }
+    // Example: Shift the date by a fixed number of days (e.g., 30 days)
+    // Note that rawDate is expected to be in the format "YYYY-MM-DD", so we need to parse it accordingly
+    const newMonth = Math.floor(Math.random() * 12) + 1;
+    const newDay = Math.floor(Math.random() * 28) + 1;
+    const newYear = Math.floor(Math.random()*30) + 1990
+    return `${String(newYear)}${String(newMonth).padStart(2, '0')}${String(newDay).padStart(2, '0')}`
+  }
+  else if (key === "PatientSex") {
+    // Even Represents Male, Odd represents Female
+    const value = data[key]
+    if (value === undefined) {
+      console.log(`No value to edit: Value: ${value}`)
+      return "";
+    }
+    if ((value !== "M") && (value !== "F")) {
+      console.warn(`Expected sex to either be M or F but got ${value}`)
+      return value;
+    }
+    
+    if (value == "M") {
+      // Generate Even number in range [0,100]
+      const randomNumber = Math.floor(Math.random()*51)*2
+      return String(randomNumber)
+    }
+    else if (value == "F") {
+      // Generate Odd number in range [0,100]
+      const randomNumber = Math.floor(Math.random()*50)*2 + 1
+      return String(randomNumber)
+    }
+    
+    
+  }
+  else if (key === "PatientBirthDate") {
+    const value = data[key]
+    if (value === undefined || value === "") {
+      console.log(`No value to edit: Value: ${value}`)
+      return "";
+    }
+    // Not sure whether the PatientAge is a string integer or DOB
+    const newMonth = String(2)
+    const newDay = String(29)
+    const plusOrMinusOne = Math.floor(Math.random() * 2) * 2 - 1
+    const year = String( Number(value.substring(0,4)) + plusOrMinusOne )
+    return `${year}${newMonth.padStart(2, '0')}${newDay.padStart(2, '0')}`
+    
+  }
+
+  return "";
+}
+
+function applyTransformation(
+  data: BaseDicomMetadata,
+  modifiedDataset: Record<keyof BaseDicomMetadata, Transformation>,
+  key: keyof BaseDicomMetadata,
+  vr: string
+): any {
+  const transformation = modifiedDataset[key];
+  const originalValue = data[key];
+
+  switch (transformation.type) {
+    case "REMOVE":
+      return null;
+
+    case "KEEP":
+      return enforceVR(String(originalValue ?? ""), vr);
+
+    case "MAP":
+      const mapped= mapper(data,key);
+      if (typeof mapped === "string") {
+        return enforceVR(mapped, vr);
+      }
+      return mapped;
+
+    case "HASH": {
+      const hashed = crypto.createHash("sha256").update(String(originalValue ?? "")).digest("hex");
+      return enforceVR(hashed, vr);
+    }
+
+    case "GENERATE_UID":
+      return generateUID();
+  }
+}
+
+function enforceVR(value: string, vr: string): string {
+  if (value == null) return value;
+
+  switch (vr) {
+    case "CS":
+      return value.toUpperCase().slice(0, 16);
+
+    case "SH":
+      return value.slice(0, 16);
+
+    case "LO":
+      return value.slice(0, 64);
+
+    case "UI":
+      return sanitizeUID(value); // you NEED this
+
+    default:
+      return value;
+  }
+}
+
+function sanitizeUID(value: string): string {
+  // remove invalid chars
+  let cleaned = value.replace(/[^0-9.]/g, "");
+
+  // enforce max length
+  if (cleaned.length > 64) {
+    cleaned = cleaned.slice(0, 64);
+  }
+
+  return cleaned || generateUID();
+}
+
+function generateUID(): string {
+  return "2.25." + BigInt("0x" + crypto.randomUUID().replace(/-/g, "")).toString();
+}
+
 // IPC handler to read DICOM file and return metadata
 ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<string, BaseDicomMetadata>> => {
   const fileDataset: Record<string, BaseDicomMetadata> = {}
@@ -174,7 +340,11 @@ ipcMain.handle(
 
 
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
-ipcMain.handle("write-dicom",async (_event,modifiedDatasets: Record<string, BaseDicomMetadata>, uploadRoot:string|null
+ipcMain.handle("write-dicom",async (
+  _event,
+  modifiedDatasets: Record<string, Record<keyof BaseDicomMetadata, Transformation>>,
+  dataSet: Record<string, BaseDicomMetadata>,
+  uploadRoot:string|null
   ):Promise<ExportResult> => {
 
     if (!uploadRoot) {
@@ -205,17 +375,17 @@ ipcMain.handle("write-dicom",async (_event,modifiedDatasets: Record<string, Base
             const tagCode = tagInfo.tag.replace(/[(),]/g, "")
             const element = dicomCopy.dict[tagCode]
 
-            const value = modifiedDataset[key]
-            // Catches both null & undefined values 
-            if (value == null && element) {
-              delete dicomCopy.dict[tagCode]
-              continue
-            }
+            
             if (!element) continue
+            if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue;
+            const vr = element.vr;
 
-            if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue
-
-            element.Value = Array.isArray(value) ? value : [value]
+            const newValue = applyTransformation(dataSet[filePath],modifiedDataset,key,vr);
+            if (newValue == null) {
+              delete dicomCopy.dict[tagCode];
+              continue;
+            }
+            element.Value = Array.isArray(newValue) ? newValue : [newValue];
           }
 
           const buffer = dicomCopy.write()

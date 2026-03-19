@@ -1,3 +1,4 @@
+import { Transformation } from '@/policy/PolicyLogic';
 import { BaseDicomMetadata } from '@/types/BaseDicomMetadata';
 import { ipcRenderer, contextBridge } from 'electron'
 console.log("Preload loaded");
@@ -29,8 +30,8 @@ contextBridge.exposeInMainWorld('ipcRenderer', {
 contextBridge.exposeInMainWorld("api", {
   readDicom: (filePaths: string[]):Promise<Record<string, BaseDicomMetadata>> =>
     ipcRenderer.invoke("read-dicom", filePaths),
-  writeDicom: (metadata: Record<string, BaseDicomMetadata>, uploadRoot:string|null):Promise<ExportResult> =>
-    ipcRenderer.invoke("write-dicom", metadata, uploadRoot),
+  writeDicom: (metadata: Record<string, Record<keyof BaseDicomMetadata, Transformation>>,dataSet: Record<string, BaseDicomMetadata>, uploadRoot:string|null):Promise<ExportResult> =>
+    ipcRenderer.invoke("write-dicom", metadata, dataSet,uploadRoot),
   selectExportFolder: ():Promise<ExportFolderResult> =>
     ipcRenderer.invoke("select-export-folder"),
   hash: (value: string):Promise<String> =>

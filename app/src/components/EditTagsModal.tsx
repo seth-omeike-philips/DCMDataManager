@@ -1,6 +1,6 @@
 import React, { useState,useRef } from "react"
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
-import { policyLogicFunction } from "@/policy/PolicyLogic"
+import { policyLogicFunction, Transformation } from "@/policy/PolicyLogic"
 import { basePolicyLogic } from "@/policy/BasePolicyLogic"
 import { NonEditableTags } from "@/policy/NonEditableTags"
 import Draggable from "react-draggable"
@@ -13,12 +13,13 @@ interface Props {
   dataSet: Record<string, BaseDicomMetadata>
   onClose: () => void
   isAllFilesAvailable: boolean
+  setModifiedDataSet: React.Dispatch<React.SetStateAction<Record<string, Record<keyof BaseDicomMetadata, Transformation>>>>
 }
 
 const defaultPolicy: Record<string, Record<keyof BaseDicomMetadata, Tag>> = basePolicyLogic
 type Status = "idle"| "success" | "error"
 
-const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable }) => {
+const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,setModifiedDataSet }) => {
 
     const [profile, setProfile] = useState<string>("ANONYMIZE")
     const [status, setStatus] = useState<Status>("idle")
@@ -42,11 +43,9 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable }
 
     const handleSubmit = async () => {
         try {
-            const entries = Object.values(dataSet)
-
-            for (const item of entries) {
-                await policyLogicFunction(profile, policyLogic, item)
-            }
+            const tagActions = policyLogic[profile];
+            const modifiedDataSet = policyLogicFunction(tagActions,dataSet);
+            setModifiedDataSet(modifiedDataSet);
 
             setStatus("success")
             openModal({

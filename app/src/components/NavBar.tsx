@@ -4,6 +4,7 @@ import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
 import { useFileContext} from "../context/FileContext"
 import { useModal } from "@/context/ModalContext"
 import { Loader2 } from "lucide-react"
+import { Transformation } from "@/policy/PolicyLogic"
 
 
 interface NavbarProps {
@@ -19,7 +20,8 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsAllFi
   const [showModal, setShowModal] = useState(false)
   const [exportStatus, setExportStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const {uploadRoot} = useFileContext();
-  const { openModal } = useModal()
+  const { openModal } = useModal();
+  const [modifiedDataSet, setModifiedDataSet] = useState<Record<string, Record<keyof BaseDicomMetadata, Transformation>>>({});
   const handleEditTags = () => {
     if (!dataSet) return
     setShowModal(true)
@@ -33,15 +35,14 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsAllFi
 
   const handleExport = async () => {
     try {
-      if (!dataSet || Object.keys(dataSet).length === 0) {
-        alert("No datasets to export.")
-        return
+      if (!modifiedDataSet ||  Object.keys(modifiedDataSet).length === 0) {
+        throw new Error("No Policy Applied");
       }
 
       setExportStatus("loading")
 
       // Export
-      const result = await window.api.writeDicom(dataSet, uploadRoot)
+      const result = await window.api.writeDicom(modifiedDataSet,dataSet, uploadRoot)
       console.log(result)
       if (result.success && result.exportPath) {
         setExportStatus("success")
@@ -158,6 +159,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsAllFi
           dataSet={dataSet}
           onClose={() => setShowModal(false)}
           isAllFilesAvailable={isAllFilesAvailable}
+          setModifiedDataSet={setModifiedDataSet}
         />
       )}
     </>
