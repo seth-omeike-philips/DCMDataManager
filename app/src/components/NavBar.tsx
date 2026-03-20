@@ -10,13 +10,12 @@ import { Transformation } from "@/policy/PolicyLogic"
 interface NavbarProps {
   dataSet: Record<string, BaseDicomMetadata>
   isAllFilesAvailable: boolean
-  setIsAllFilesAvailable:React.Dispatch<React.SetStateAction<boolean>>
-  setIsFileUploaded: React.Dispatch<React.SetStateAction<boolean>>
+  handleClose: () => void
 
 }
 
 
-const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsAllFilesAvailable,setIsFileUploaded }) => {
+const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,handleClose}) => {
   const [showModal, setShowModal] = useState(false)
   const [exportStatus, setExportStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const {uploadRoot} = useFileContext();
@@ -27,10 +26,6 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsAllFi
     setShowModal(true)
   }
 
-  const handleBack = () => {
-    setIsFileUploaded(false);
-    setIsAllFilesAvailable(false);
-  }
 
 
   const handleExport = async () => {
@@ -129,7 +124,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,setIsAllFi
           )}
 
           <button
-            onClick={() => handleBack()}
+            onClick={() => handleClose()}
             className="px-4 py-2 bg-gray-600 hover:bg-gray-700 rounded-lg transition"
           >
             Back

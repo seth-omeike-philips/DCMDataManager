@@ -26,6 +26,14 @@ const DicomApp: React.FC = () => {
     const [dataSet, setDataSet] = useState<Record<string, BaseDicomMetadata>>({})
     const [curSlice, setCurSlice] = useState<DicomSlice | undefined>(undefined);
 
+    const handleClose = () => {
+        setDataSet({});
+        setCurSlice(undefined);
+        setIsFileUploaded(false);
+        setIsDragging(false);
+        setIsLoading(false);
+    }
+
 
     const asyncPool = async<T,R>(limit:number, items:T[], iteratorFn:(item:T)=> Promise<R>):Promise<R[]> => {
         const ret: Promise<R>[] = []
@@ -355,8 +363,7 @@ const DicomApp: React.FC = () => {
                 curSlice={curSlice}
                 setCurSlice={setCurSlice}
                 isAllFilesAvailable={isAllFilesAvailable}
-                setIsAllFilesAvailable={setIsAllFilesAvailable}
-                setIsFileUploaded={setIsFileUploaded}
+                handleClose={handleClose}
             />
             )}
             
