@@ -14,6 +14,8 @@ const DicomStackViewer: React.FC<DicomStackViewerProps> = ({ setCurSlice,isAllFi
 
   const [slices, setSlices] = useState<DicomSlice[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
+  const DEFAULT_ROW = 512;
+  const DEFAULT_COL = 512;
 
   // 🔹 Load & Parse DICOM Files
   useEffect(() => {
@@ -34,19 +36,23 @@ const DicomStackViewer: React.FC<DicomStackViewerProps> = ({ setCurSlice,isAllFi
           const dataSet = dicomParser.parseDicom(byteArray);
           
 
-          const rows = dataSet.uint16("x00280010")?.valueOf()
-          const cols = dataSet.uint16("x00280011")?.valueOf()
+          const rows = dataSet.uint16("x00280010")?.valueOf() ?? DEFAULT_ROW;
+          const cols = dataSet.uint16("x00280011")?.valueOf() ?? DEFAULT_COL;
           const instanceNumber = dataSet.intString("x00200013") || 0;
 
-          if (!rows || !cols) {
-            console.warn("Skipping invalid image:", fileName)
-            continue
-          }
           const pixelElement = dataSet.elements.x7fe00010;
 
           if (!pixelElement) {
             console.warn("Skipping non-image DICOM:", fileName)
-            continue
+            parsedSlices.push({
+              rows,
+              cols,
+              pixelData:undefined,
+              instanceNumber,
+              filePath: filePaths[i],
+              fileName
+            });
+          continue
           }
           const bitsAllocated = dataSet.uint16("x00280100") || 16
           let pixelData;
@@ -104,7 +110,12 @@ const DicomStackViewer: React.FC<DicomStackViewerProps> = ({ setCurSlice,isAllFi
 
     const imageData = ctx.createImageData(slice.cols, slice.rows);
 
+    // Handle missing pixelData
     const { pixelData } = slice;
+    if (!pixelData) {
+      drawPlaceholder(ctx, canvas.width, canvas.height, slice);
+      return
+    }
 
     // Basic normalization (simple windowing)
     let min = Infinity;
@@ -127,6 +138,43 @@ const DicomStackViewer: React.FC<DicomStackViewerProps> = ({ setCurSlice,isAllFi
 
     ctx.putImageData(imageData, 0, 0);
   }, [slices, currentIndex]);
+
+  const drawPlaceholder = (
+  ctx: CanvasRenderingContext2D,
+  width: number,
+  height: number,
+  slice: any
+) => {
+  // Background
+  ctx.fillStyle = "#1a1a1a";
+  ctx.fillRect(0, 0, width, height);
+
+  // Optional subtle border
+  ctx.strokeStyle = "#444";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0, 0, width, height);
+
+  // Text styling
+  ctx.fillStyle = "#e0e0e0";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Title
+  ctx.font = "bold 20px sans-serif";
+  ctx.fillText("No Pixel Data", width / 2, height / 2 - 20);
+
+  // Subtitle
+  ctx.font = "16px sans-serif";
+  ctx.fillStyle = "#aaa";
+  ctx.fillText("(Not an image DICOM)", width / 2, height / 2 + 10);
+
+  // Optional metadata (VERY useful)
+  if (slice?.modality) {
+    ctx.fillStyle = "#888";
+    ctx.font = "14px monospace";
+    ctx.fillText(`Modality: ${slice.modality}`, width / 2, height / 2 + 40);
+  }
+};
 
   // 🔹 Scroll to Change Slice
   const handleWheel = (event: React.WheelEvent) => {
