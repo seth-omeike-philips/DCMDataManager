@@ -13,7 +13,7 @@ export type Transformation =
 
 
 
-export const policyLogicFunction = (tagActions: Record<keyof BaseDicomMetadata, Tag>,dataSet: Record<string, BaseDicomMetadata>
+export const policyLogicFunction = (tagActions: Partial<Record<keyof BaseDicomMetadata, Tag>>,dataSet: Record<string, BaseDicomMetadata>
 ): Record<string, Record<keyof BaseDicomMetadata, Transformation>> => {
 
   const modifiedDataSet: Record<string,Record<keyof BaseDicomMetadata, Transformation>> = {};

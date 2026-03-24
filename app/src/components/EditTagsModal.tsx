@@ -91,8 +91,21 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                     ...tags
                 }
             }))
+            
             setProfile(profileName)
+
+            // Enable Persistence
+            basePolicyLogic[profileName] = {} as Partial<Record<keyof BaseDicomMetadata, Tag>>;
+
+            for (const [key ,val] of Object.entries(tags) as [keyof BaseDicomMetadata,Tag][]) {
+                if (!val) continue
+                basePolicyLogic[profileName][key] = val
+            }
+            
+
+            
         } catch (err) {
+            console.log(err)
             openModal({
                 type: "error",
                 title: "Error Reading Profile",

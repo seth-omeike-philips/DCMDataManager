@@ -1,7 +1,7 @@
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata";
 
 // Will need to make this editable by users in the future, but for now we will just hardcode it. The structure is as follows:
-export const basePolicyLogic: Record<string, Record<keyof BaseDicomMetadata, Tag>> = {
+export const basePolicyLogic: Record<string, Partial<Record<keyof BaseDicomMetadata, Tag>>> = {
     /**
      * DEIDENTIFY: Replace all personally identifiable information with "N/A" or a similar placeholder.
      * ANONYMIZE: Hash personally identifiable information to create a consistent but non-reversible identifier, while keeping non-identifiable information intact.
