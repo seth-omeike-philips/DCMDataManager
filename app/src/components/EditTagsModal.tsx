@@ -16,7 +16,6 @@ interface Props {
   setModifiedDataSet: React.Dispatch<React.SetStateAction<Record<string, Record<keyof BaseDicomMetadata, Transformation>>>>
 }
 
-const defaultPolicy: Record<string, Record<keyof BaseDicomMetadata, Tag>> = basePolicyLogic
 type Status = "idle"| "success" | "error"
 
 const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,setModifiedDataSet }) => {
@@ -24,14 +23,11 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
     const [profile, setProfile] = useState<string>("ANONYMIZE")
     const [status, setStatus] = useState<Status>("idle")
     
-    const [policyLogic, setPolicyLogic] = useState(defaultPolicy)
+    const [policyLogic, setPolicyLogic] = useState(basePolicyLogic)
     const {openModal} = useModal();
 
     const nodeRef = useRef<HTMLDivElement>(null)
-    const handleTagChange = (
-        key: keyof BaseDicomMetadata,
-        value: Tag
-    ) => {
+    const handleTagChange = (key: keyof BaseDicomMetadata,value: Tag) => {
         setPolicyLogic(prev => ({
         ...prev,
         [profile]: {
@@ -39,6 +35,8 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
             [key]: value
         }
         }))
+        // For persistance
+        basePolicyLogic[profile][key] = value;
     }
 
     const handleSubmit = async () => {
@@ -50,8 +48,8 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
             setStatus("success")
             openModal({
                 type: "success",
-                title: "Policy Successfully Applied",
-                message:"Your policy has been successfully applied."
+                title: "Policy Successfully Staged",
+                message:"Your policy has been successfully staged for exportation."
               })
 
             setTimeout(() => {
