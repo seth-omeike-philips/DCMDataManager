@@ -259,58 +259,84 @@ const DicomApp: React.FC = () => {
         e.preventDefault()
         setIsDragging(false)
     
-        try {
-    
+        try {  
+                    
+            const start =new Date();
         
-        const start =new Date();
-    
-        const items = e.dataTransfer.items
-        const files: File[] = []
-    
-        console.log(`File: ${Array.from(e.dataTransfer.items)}`)
-    
-        const zipFile = Array.from(e.dataTransfer.items).find(file =>
-        file.type === "application/zip" ||
-        file.type === "application/x-zip-compressed" ||
-        file.getAsString.name.toLowerCase().endsWith(".zip")
-        )
-        if (zipFile) throw new Error("Zip files are not supported. Please upload a folder or DICOM files directly.")
-    
-    
-        const start1 = new Date();
-        await Promise.all(
-        Array.from(items).map(async (item) => {
-            const entry = item.webkitGetAsEntry()
-            if (entry) {
-            await collectEntries(entry, 0, MAX_DEPTH, files)
+            const items = e.dataTransfer.items
+            const files: File[] = []
+        
+            console.log(`File: ${Array.from(e.dataTransfer.items)}`)
+
+            
+        
+            for (const item of items) {
+                const file = item.getAsFile();
+                if (file && file.name.toLowerCase().endsWith(".zip")) {
+                    throw new Error("Zip files are not supported.");
+                }
             }
-        })
-        )
-        const end1 = new Date()
-        console.log(`Length of files collected: ${files.length}`)
-        const elapsedMs1 = (end1.getTime() - start1.getTime()) 
-        console.log(`Elapsed seconds: ${elapsedMs1/1000}`)
-    
-    
-        const start2 = new Date()
-        const dicomFiles = await filterDicomFiles(files)
-        console.log(`Length of files filtered: ${dicomFiles.length}`)
-        const end2 = new Date()
-        const elapsedMs2 = (end2.getTime() - start2.getTime()) 
-        console.log(`Elapsed seconds: ${elapsedMs2/1000}`)
-    
-    
-        const start3 = new Date()
-        await processFilesFromArray(dicomFiles)
-        const end3 = new Date()
-        const elapsedMs3 = (end3.getTime() - start3.getTime()) 
-        console.log(`Elapsed seconds: ${elapsedMs3/1000}`)
-    
-        const end = new Date();
-        const elapsedMs = (end.getTime() - start.getTime()) 
-        console.log(`Elapsed seconds: ${elapsedMs/1000}`)
+                
+            const start1 = new Date();
+            await Promise.all(
+            Array.from(items).map(async (item) => {
+                const entry = item.webkitGetAsEntry()
+                if (entry) {
+                await collectEntries(entry, 0, MAX_DEPTH, files)
+                }
+            })
+            )
+            const dataTransfer = new DataTransfer();
+            files.forEach(file => dataTransfer.items.add(file));
+
+            
+            setIsLoading(true);
+            await new Promise(requestAnimationFrame);
+
+            await fetchFirstFile(dataTransfer.files, MAX_DEPTH);
+
+            
+            setIsFileUploaded(true);
+            setIsLoading(false);
+
+
+            const end1 = new Date()
+            console.log(`Length of files collected: ${files.length}`)
+            const elapsedMs1 = (end1.getTime() - start1.getTime()) 
+            console.log(`Elapsed seconds: ${elapsedMs1/1000}`)
+        
+        
+            const start2 = new Date()
+            const dicomFiles = await filterDicomFiles(files)
+            console.log(`Length of files filtered: ${dicomFiles.length}`)
+            const end2 = new Date()
+            const elapsedMs2 = (end2.getTime() - start2.getTime()) 
+            console.log(`Elapsed seconds: ${elapsedMs2/1000}`)
+        
+        
+            const start3 = new Date()
+            await processFilesFromArray(dicomFiles)
+            const end3 = new Date()
+            const elapsedMs3 = (end3.getTime() - start3.getTime()) 
+            console.log(`Elapsed seconds: ${elapsedMs3/1000}`)
+        
+            const end = new Date();
+            const elapsedMs = (end.getTime() - start.getTime()) 
+            console.log(`Elapsed seconds: ${elapsedMs/1000}`)
+
+
+
+            
+
+            const root = getCommonPath(dataTransfer.files)
+            setUploadRoot(root)
+            console.log("Root path:",root)
+            setIsAllFilesAvailable(true);
+
+            
     
         } catch (error:any) {
+            console.log(error)
             openModal({
                 type: "error",
                 title: String(error),
