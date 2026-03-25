@@ -4,7 +4,6 @@ import { policyLogicFunction, Transformation } from "@/policy/PolicyLogic"
 import { basePolicyLogic } from "@/policy/BasePolicyLogic"
 import { NonEditableTags } from "@/policy/NonEditableTags"
 import Draggable from "react-draggable"
-import { UploadedProfile } from "@/types/UploadedProfile"
 import { useModal } from "@/context/ModalContext"
 import UploadProfileHelp from "./UploadProfileHelp"
 import { Loader2 } from "lucide-react"
@@ -38,6 +37,37 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
         // For persistance
         basePolicyLogic[profile][key] = value;
     }
+
+    const handleExportProfile = () => {
+        try {
+            const currentProfile = policyLogic[profile];
+
+            if (!currentProfile) throw new Error(`Profile "${profile}" not found`);
+
+            const json = JSON.stringify(currentProfile, null, 2);
+            const blob = new Blob([json], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${profile}.json`;
+            a.click();
+
+            URL.revokeObjectURL(url);
+            openModal({
+                type: "success",
+                title: "Profile Compiled Successfully",
+                message: `Your profile has been compiled and can be exported.`
+            })
+        } catch (err) {
+            openModal({
+                type: "error",
+                title: "Profile Export Failed",
+                message: `${err}`
+            })
+            console.error("Export failed:", err);
+        }
+    };
 
     const handleSubmit = async () => {
         try {
@@ -76,10 +106,10 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
         try {
 
             const text = await file.text()
+            const profileName = file.name.replace(/\.[^/.]+$/, "");
             console.log(text)
-            const parsed: UploadedProfile = JSON.parse(text)
+            const tags: Partial<Record<keyof BaseDicomMetadata, Tag>> = JSON.parse(text)
 
-            const { profileName, tags } = parsed
 
             if (!profileName || !tags) {
                 throw new Error("JSON file is missing profileName or tags.")
@@ -142,53 +172,65 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                     Edit Tag Policy
                     </h2>
 
-                    {/* Profile Selector */}
-                    <div className="mb-6 flex items-center justify-between">
-    
-                        {/* Profile Select */}
-                        <div className="flex items-center gap-2 ">
-                            <label className="font-medium ">Profile:</label>
-                            <select
-                                value={profile}
-                                onChange={(e) => setProfile(e.target.value as string)}
-                                className="border rounded px-3 py-1 bg-slate-100 cursor-pointer"
-                                >
-                                {Object.keys(policyLogic).map(profileName => (
-                                        <option key={profileName} >{profileName}</option>                            
-                                ))}
-                            </select>
-                        </div>
-
-                        {/* Actions */}
-                        <div className="flex items-center gap-4">
-                            <div className="relative rounded p-4">
-                                <UploadProfileHelp />
-                                <label className="px-3 py-2 bg-gray-200 rounded-lg cursor-pointer hover:bg-gray-300 text-sm font-medium">
-                                    Upload Profile
-                                    <input
-                                        type="file"
-                                        accept=".json"
-                                        className="hidden"
-                                        onChange={(e) => {
-                                            const file = e.target.files?.[0];
-                                            if (file) handleUploadProfile(file);
-                                            e.target.value = "";
-                                        }}
-                                    />
-                                </label>
+                    <div className="flex flex-col mb-5">
+                    
+                        {/* Profile Selector */}
+                        <div className="mb-2 flex items-center justify-between">
+        
+                            {/* Profile Select */}
+                            <div className="flex  items-center gap-2 ">
+                                <label className="font-medium ">Profile:</label>
+                                <select
+                                    value={profile}
+                                    onChange={(e) => setProfile(e.target.value as string)}
+                                    className="border rounded px-3 py-1 bg-slate-100 cursor-pointer"
+                                    >
+                                    {Object.keys(policyLogic).map(profileName => (
+                                            <option key={profileName} >{profileName}</option>                            
+                                    ))}
+                                </select>
+                                
                             </div>
 
-                            <button
-                            onClick={handleSubmit}
-                            className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
-                            disabled={!isAllFilesAvailable}
-                            >
-                            {isAllFilesAvailable ?
-                            ("Apply Policy") :
-                            (<Loader2 className="h-5 w-5 animate-spin text-white" />)
-                            }
-                            </button>
+                            
+
+                            {/* Actions */}
+                            <div className="flex items-center gap-4">
+                                
+
+                                <div className="relative rounded p-4">
+                                    <UploadProfileHelp />
+                                    <label className="px-3 py-2 bg-gray-200 rounded-lg cursor-pointer hover:bg-gray-300 text-sm font-medium">
+                                        Upload Profile
+                                        <input
+                                            type="file"
+                                            accept=".json"
+                                            className="hidden"
+                                            onChange={(e) => {
+                                                const file = e.target.files?.[0];
+                                                if (file) handleUploadProfile(file);
+                                                e.target.value = "";
+                                            }}
+                                        />
+                                    </label>
+                                </div>
+
+                                <button
+                                    onClick={handleSubmit}
+                                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                                    disabled={!isAllFilesAvailable}
+                                    >
+                                    {isAllFilesAvailable ?
+                                    ("Apply Policy") :
+                                    (<Loader2 className="h-5 w-5 animate-spin text-white" />)
+                                    }
+                                </button>
+
+                            </div>
                         </div>
+                        <button onClick={handleExportProfile} className="px-4 py-2 max-w-40 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition">
+                            Export Profile
+                        </button>
                     </div>
 
                     {/* Tag List */}

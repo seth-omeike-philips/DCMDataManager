@@ -12,25 +12,20 @@ const UploadProfileHelp: React.FC = () => {
 
         Required structure:
 
-        {
-            "profileName": "Example Profile",
-            "tags": {
-                "PatientName": "REMOVE",
-                "PatientID": "HASH",
-                "StudyDate": "KEEP"
-            }
-        }
+          {
+            "PatientName": "REMOVE",
+            "PatientID": "HASH",
+            "StudyDate": "KEEP"
+          }
 
         Explanation:
-
-        • profileName — name of the profile shown in the UI
-        • tags — mapping of DICOM tag names to actions
+          • tags — mapping of DICOM tag names to actions
 
         Supported actions may include:
-        REMOVE
-        KEEP
-        HASH
-        REPLACE_WITH_UNDEFINED
+          REMOVE
+          KEEP
+          HASH
+          REPLACE_WITH_UNDEFINED
 
         The tag names must match the DICOM metadata keys used by the application.
     `
