@@ -43,7 +43,6 @@ const DicomStackViewer: React.FC<DicomStackViewerProps> = ({ setCurSlice,isAllFi
           const pixelElement = dataSet.elements.x7fe00010;
 
           if (!pixelElement) {
-            console.warn("Skipping non-image DICOM:", fileName)
             parsedSlices.push({
               rows,
               cols,

@@ -133,7 +133,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                     {/* Close button */}
                     <button
                     onClick={onClose}
-                    className="absolute top-4 right-4 text-gray-500 hover:text-black"
+                    className="absolute bg-slate-100 top-4 right-4 text-gray-500 hover:text-black"
                     >
                     ✕
                     </button>
@@ -146,12 +146,12 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                     <div className="mb-6 flex items-center justify-between">
     
                         {/* Profile Select */}
-                        <div className="flex items-center gap-2">
-                            <label className="font-medium">Profile:</label>
+                        <div className="flex items-center gap-2 ">
+                            <label className="font-medium ">Profile:</label>
                             <select
                                 value={profile}
                                 onChange={(e) => setProfile(e.target.value as string)}
-                                className="border rounded px-3 py-1"
+                                className="border rounded px-3 py-1 bg-slate-100 cursor-pointer"
                                 >
                                 {Object.keys(policyLogic).map(profileName => (
                                         <option key={profileName} >{profileName}</option>                            
@@ -224,7 +224,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
 
                             <select value={policyLogic[profile][typedKey] ?? "COULD_NOT_FIND_TAG"}
                                 onChange={e => handleTagChange( typedKey,e.target.value as Tag)}
-                                className="border rounded px-2 py-1"
+                                className="bg-slate-100 border rounded px-2 py-1"
                             >
                                 <option value="KEEP">
                                     KEEP

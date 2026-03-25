@@ -189,10 +189,10 @@ const NestedField: React.FC<{ label: string; value: any }> = ({
 
     // Otherwise → array of objects (DICOM sequence)
     return (
-      <div className="text-xs">
+      <div className="text-xs  ">
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1 font-mono text-muted-foreground hover:text-foreground transition"
+          className="flex bg-slate-100 items-center gap-1 font-mono text-muted-foreground hover:text-foreground transition"
         >
           <ChevronRight
             className={`h-3 w-3 transition-transform ${
@@ -235,7 +235,7 @@ const NestedField: React.FC<{ label: string; value: any }> = ({
       <div className="text-xs">
         <button
           onClick={() => setOpen(!open)}
-          className="flex items-center gap-1 font-mono text-muted-foreground hover:text-foreground transition"
+          className="flex bg-slate-100 items-center gap-1 font-mono text-muted-foreground hover:text-foreground transition"
         >
           <ChevronRight
             className={`h-3 w-3 transition-transform ${
