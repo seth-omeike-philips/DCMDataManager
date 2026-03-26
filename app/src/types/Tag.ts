@@ -1,1 +1,0 @@
-type Tag = "REMOVE"|"HASH"|"GENERATE_UID"|"KEEP"|"MAP";

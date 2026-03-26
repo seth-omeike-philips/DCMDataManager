@@ -12,7 +12,7 @@ import fs from "fs";
 import dcmjs from "dcmjs";
 import path from 'node:path'
 import { dicomStore } from '../src/storage/DicomStore';
-import { Transformation } from '@/policy/PolicyLogic';
+import { TagAction } from '@/policy/PolicyLogic';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -216,55 +216,147 @@ const mapper = (data:BaseDicomMetadata, key:keyof BaseDicomMetadata) => {
 
 function applyTransformation(
   data: BaseDicomMetadata,
-  modifiedDataset: Record<keyof BaseDicomMetadata, Transformation>,
+  modifiedDataset: Record<keyof BaseDicomMetadata, TagAction>,
   key: keyof BaseDicomMetadata,
   vr: string
 ): any {
   const transformation = modifiedDataset[key];
   const originalValue = data[key];
 
+
+  if (!originalValue && originalValue !== 0) {
+    return originalValue;
+  }
+
   switch (transformation.type) {
     case "REMOVE":
       return null;
 
     case "KEEP":
-      return enforceVR(String(originalValue ?? ""), vr);
+      return originalValue;
 
     case "MAP":
       const mapped= mapper(data,key);
       if (typeof mapped === "string") {
-        return enforceVR(mapped, vr);
+        return enforceVR(key,mapped, vr);
       }
       return mapped;
+    
+
 
     case "HASH": {
-      const hashed = crypto.createHash("sha256").update(String(originalValue ?? "")).digest("hex");
-      return enforceVR(hashed, vr);
+      originalValue
+      if (typeof originalValue != "string"  && typeof originalValue!= "number") {
+        // Cannot hash
+        throw new Error(`Cannot hash key: ${key}. Can only hash types number or string`);
+      }
+      const hashed = crypto.createHash("sha256").update(String(originalValue)).digest("hex");
+      return enforceVR(key,cleanHash(hashed, vr),vr);
     }
 
     case "GENERATE_UID":
-      return generateUID();
+      return enforceVR(key,generateUID(), vr);
+    case "CUSTOM":
+      return enforceVR(key,transformation.value, vr);
+    default:
+      // Nothing to do. Perhaps throw an error as we don't expect this case to be reached?
+      ;
   }
 }
 
-function enforceVR(value: string, vr: string): string {
+function cleanHash(value: string, vr: string): string {
+  if (value == null) return value;
+  switch (vr) {
+      case "CS":
+        return value.toUpperCase().slice(0, 16);
+        case "SH":
+          return value.slice(0, 16);
+        case "LO":
+          return value.slice(0, 64);
+        case "UI":
+          return sanitizeUID(value); 
+        default: return value;
+      }
+}
+
+function enforceVR(key:keyof BaseDicomMetadata, value: string, vr: string): string|string[] {
   if (value == null) return value;
 
+  if (Array.isArray(value)) {
+    return value.map(v => enforceVR(key,v, vr)) as string[];
+  }
+
+  const trimmed = value.trim();
+  console.log(`TrimmedVal: ${trimmed}`)
+
   switch (vr) {
-    case "CS":
-      return value.toUpperCase().slice(0, 16);
+    case "CS": { // Code String (max 16, uppercase, no leading/trailing spaces)
+      const formatted = trimmed.toUpperCase();
+      if (formatted.length > 16) {
+        throw new Error(`Error on tag: ${key}\nCS exceeds max length of 16`);
+      }
+      return formatted;
+    }
 
-    case "SH":
-      return value.slice(0, 16);
+    case "SH": { // Short String (max 16)
+      if (trimmed.length > 16) {
+        throw new Error(`Error on tag: ${key}\nSH exceeds max length of 16`);
+      }
+      return trimmed;
+    }
 
-    case "LO":
-      return value.slice(0, 64);
+    case "LO": { // Long String (max 64)
+      if (trimmed.length > 64) {
+        throw new Error(`Error on tag: ${key}\nLO exceeds max length of 64`);
+      }
+      return trimmed;
+    }
 
-    case "UI":
-      return sanitizeUID(value); // you NEED this
+    case "UI": { // UID (numbers and dots only)
+      if (!/^[0-9.]+$/.test(trimmed)) {
+        throw new Error(`Error on tag: ${key}\nUI must contain only numbers and dots`);
+      }
+      return sanitizeUID(trimmed);
+    }
+
+    case "DA": { // Date YYYYMMDD
+      if (!/^\d{8}$/.test(trimmed)) {
+        throw new Error(`Error on tag: ${key}\nDA must be in format YYYYMMDD`);
+      }
+      return trimmed;
+    }
+
+    case "TM": { // Time HHMMSS.frac (DICOM allows partials)
+      if (!/^\d{2,6}(\.\d+)?$/.test(trimmed)) {
+        throw new Error(`Error on tag: ${key}\nTM must be in format HHMMSS or HHMMSS.frac`);
+      }
+      return trimmed;
+    }
+
+    case "PN": { // Person Name (simplified)
+      if (trimmed.length > 64) {
+        throw new Error(`Error on tag: ${key}\nPN exceeds max length of 64`);
+      }
+      return trimmed;
+    }
+
+    case "IS": { // Integer String
+      if (!/^-?\d+$/.test(trimmed)) {
+        throw new Error(`Error on tag: ${key}\nIS must be a valid integer`);
+      }
+      return trimmed;
+    }
+
+    case "DS": { // Decimal String
+      if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
+        throw new Error(`Error on tag: ${key}\nDS must be a valid decimal number`);
+      }
+      return trimmed;
+    }
 
     default:
-      return value;
+      // fallback: don’t block unknown VRs, just return trimmed
+      return trimmed;
   }
 }
 
@@ -322,8 +414,7 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
   return fileDataset
 })
 
-ipcMain.handle(
-  "read-multiple-files",
+ipcMain.handle("read-multiple-files",
   async (_event, filePaths: string[]): Promise<ArrayBuffer[]> => {
     return Promise.all(
       filePaths.map(async (filePath) => {
@@ -342,7 +433,7 @@ ipcMain.handle(
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
 ipcMain.handle("write-dicom",async (
   _event,
-  modifiedDatasets: Record<string, Record<keyof BaseDicomMetadata, Transformation>>,
+  modifiedDatasets: Record<string, Record<keyof BaseDicomMetadata, TagAction>>,
   dataSet: Record<string, BaseDicomMetadata>,
   uploadRoot:string|null
   ):Promise<ExportResult> => {
@@ -355,7 +446,7 @@ ipcMain.handle("write-dicom",async (
     
     console.log("ExportFolder:", exportFolder)
 
-    await fs.promises.mkdir(exportFolder, { recursive: true })
+    
 
     const writePromises = Object.entries(modifiedDatasets).map(
       async ([filePath, modifiedDataset]) => {
@@ -393,12 +484,11 @@ ipcMain.handle("write-dicom",async (
           const relativePath = path.relative(uploadRoot, filePath)
           const curOutputPath = path.join(exportFolder, relativePath)
           
+          await fs.promises.mkdir(exportFolder, { recursive: true })
           await fs.promises.mkdir(path.dirname(curOutputPath), { recursive: true })
-
           await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
 
         } catch (err) {
-          console.error("Failed writing:", filePath, err)
           throw new Error(`Failed writing ${filePath}: ${err}`);
         }
       }

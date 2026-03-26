@@ -1,6 +1,6 @@
 import React, { useState,useRef } from "react"
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
-import { policyLogicFunction, Transformation } from "@/policy/PolicyLogic"
+import { policyLogicFunction, TagAction } from "@/policy/PolicyLogic"
 import { basePolicyLogic } from "@/policy/BasePolicyLogic"
 import { NonEditableTags } from "@/policy/NonEditableTags"
 import Draggable from "react-draggable"
@@ -12,7 +12,7 @@ interface Props {
   dataSet: Record<string, BaseDicomMetadata>
   onClose: () => void
   isAllFilesAvailable: boolean
-  setModifiedDataSet: React.Dispatch<React.SetStateAction<Record<string, Record<keyof BaseDicomMetadata, Transformation>>>>
+  setModifiedDataSet: React.Dispatch<React.SetStateAction<Record<string, Record<keyof BaseDicomMetadata, TagAction>>>>
 }
 
 type Status = "idle"| "success" | "error"
@@ -25,17 +25,59 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
     const [policyLogic, setPolicyLogic] = useState(basePolicyLogic)
     const {openModal} = useModal();
 
-    const nodeRef = useRef<HTMLDivElement>(null)
-    const handleTagChange = (key: keyof BaseDicomMetadata,value: Tag) => {
+    const nodeRef = useRef<HTMLDivElement>(null);
+
+    const handleTagChange = (key: keyof BaseDicomMetadata,tagAction: unknown) => {
         setPolicyLogic(prev => ({
-        ...prev,
-        [profile]: {
-            ...prev[profile],
-            [key]: value
-        }
+            ...prev,
+            [profile]: {
+                ...prev[profile],
+                [key]: {type:tagAction}
+            }
         }))
+        
         // For persistance
-        basePolicyLogic[profile][key] = value;
+        switch (tagAction) {
+            case "KEEP":
+                basePolicyLogic[profile][key] = {type:tagAction};
+                break;
+            case "REMOVE":
+                basePolicyLogic[profile][key] = {type:tagAction};
+                break;
+            case "MAP":
+                basePolicyLogic[profile][key] = {type:tagAction};
+                break;
+            case "GENERATE_UID":
+                basePolicyLogic[profile][key] = {type:tagAction};
+                break;
+            case "HASH":
+                basePolicyLogic[profile][key] = {type:tagAction};
+                break;
+            case "CUSTOM":
+                // Changes made here are handled by handleCustomValueChange
+                basePolicyLogic[profile][key] = {type:tagAction, value:""};
+                setPolicyLogic(prev => ({
+                    ...prev,
+                    [profile]: {
+                        ...prev[profile],
+                        [key]: {type:tagAction,value:""}
+                    }
+                }))
+                break;
+            default:
+                ;//Nothing to do, perhaps raise error 
+        }
+    }
+    const handleCustomValueChange = (key: keyof BaseDicomMetadata, value:string) => {
+        setPolicyLogic(prev => ({
+            ...prev,
+            [profile]: {
+                ...prev[profile],
+                [key]: {type: "CUSTOM",value}
+            }
+        }));
+        //Ensure persistance when EditTagsModal is closed
+        basePolicyLogic[profile][key] = {type:"CUSTOM", value:value}
     }
 
     const handleExportProfile = () => {
@@ -73,6 +115,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
         try {
             const tagActions = policyLogic[profile];
             const modifiedDataSet = policyLogicFunction(tagActions,dataSet);
+            console.log(modifiedDataSet);
             setModifiedDataSet(modifiedDataSet);
 
             setStatus("success")
@@ -107,8 +150,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
 
             const text = await file.text()
             const profileName = file.name.replace(/\.[^/.]+$/, "");
-            console.log(text)
-            const tags: Partial<Record<keyof BaseDicomMetadata, Tag>> = JSON.parse(text)
+            const tags: Partial<Record<keyof BaseDicomMetadata, TagAction>> = JSON.parse(text)
 
 
             if (!profileName || !tags) {
@@ -125,9 +167,9 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
             setProfile(profileName)
 
             // Enable Persistence
-            basePolicyLogic[profileName] = {} as Partial<Record<keyof BaseDicomMetadata, Tag>>;
+            basePolicyLogic[profileName] = {} as Partial<Record<keyof BaseDicomMetadata, TagAction>>;
 
-            for (const [key ,val] of Object.entries(tags) as [keyof BaseDicomMetadata,Tag][]) {
+            for (const [key ,val] of Object.entries(tags) as [keyof BaseDicomMetadata,TagAction][]) {
                 if (!val) continue
                 basePolicyLogic[profileName][key] = val
             }
@@ -264,26 +306,45 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                             {key}
                             </span>
 
-                            <select value={policyLogic[profile][typedKey] ?? "COULD_NOT_FIND_TAG"}
-                                onChange={e => handleTagChange( typedKey,e.target.value as Tag)}
-                                className="bg-slate-100 border rounded px-2 py-1"
-                            >
-                                <option value="KEEP">
-                                    KEEP
-                                </option>
-                                <option value="REMOVE">
-                                    REMOVE
-                                </option>
-                                <option value="HASH">
-                                    HASH
-                                </option>
-                                <option value="GENERATE_UID">
-                                    GENERATE_UID
-                                </option>
-                                <option value="MAP">
-                                    MAP
-                                </option>
-                            </select>
+                            <div className="flex flex-col">
+                                <select value={policyLogic[profile][typedKey]?.type ?? "COULD_NOT_FIND_TAG"}
+                                    onChange={e => handleTagChange( typedKey,e.target.value as unknown)}
+                                    className="bg-slate-100 border rounded px-2 py-1"
+                                >
+                                    <option value="KEEP">
+                                        KEEP
+                                    </option>
+                                    <option value="REMOVE">
+                                        REMOVE
+                                    </option>
+                                    <option value="HASH">
+                                        HASH
+                                    </option>
+                                    <option value="GENERATE_UID">
+                                        GENERATE_UID
+                                    </option>
+                                    <option value="MAP">
+                                        MAP
+                                    </option>
+                                    <option value="CUSTOM">
+                                        CUSTOM
+                                    </option>
+
+                                </select>
+                                {policyLogic[profile][typedKey]?.type === "CUSTOM" && (
+                                    <div className="flex ">
+                                        <input
+                                        type="text"
+                                        className="border mt-1 max-w-40 px-2 py-1 bg-slate-100 dark:bg-slate-100"
+                                        placeholder="Input custom value..."
+                                        value={policyLogic[profile][typedKey]?.value || ""}
+                                        onChange={(e) =>handleCustomValueChange(typedKey, e.target.value)
+                                        }
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
                         </div>
                         )
                     })}
