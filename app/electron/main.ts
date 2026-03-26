@@ -291,63 +291,63 @@ function enforceVR(key:keyof BaseDicomMetadata, value: string, vr: string): stri
     case "CS": { // Code String (max 16, uppercase, no leading/trailing spaces)
       const formatted = trimmed.toUpperCase();
       if (formatted.length > 16) {
-        throw new Error(`Error on tag: ${key}\nCS exceeds max length of 16`);
+        throw new Error(`Error on tag: ${key}\nCS exceeds max length of 16. Value Received: ${formatted} has length: ${trimmed.length}`);
       }
       return formatted;
     }
 
     case "SH": { // Short String (max 16)
       if (trimmed.length > 16) {
-        throw new Error(`Error on tag: ${key}\nSH exceeds max length of 16`);
+        throw new Error(`Error on tag: ${key}\nSH exceeds max length of 16. Value Received: ${trimmed} has length: ${trimmed.length}`);
       }
       return trimmed;
     }
 
     case "LO": { // Long String (max 64)
       if (trimmed.length > 64) {
-        throw new Error(`Error on tag: ${key}\nLO exceeds max length of 64`);
+        throw new Error(`Error on tag: ${key}\nLO exceeds max length of 64. Value Received: ${trimmed} has length: ${trimmed.length} `);
       }
       return trimmed;
     }
 
     case "UI": { // UID (numbers and dots only)
       if (!/^[0-9.]+$/.test(trimmed)) {
-        throw new Error(`Error on tag: ${key}\nUI must contain only numbers and dots`);
+        throw new Error(`Error on tag: ${key}\nUI must contain only numbers and dots. Value Received: ${trimmed}`);
       }
       return sanitizeUID(trimmed);
     }
 
     case "DA": { // Date YYYYMMDD
       if (!/^\d{8}$/.test(trimmed)) {
-        throw new Error(`Error on tag: ${key}\nDA must be in format YYYYMMDD`);
+        throw new Error(`Error on tag: ${key}\nDA must be in format YYYYMMDD. Value Received: ${trimmed}`);
       }
       return trimmed;
     }
 
     case "TM": { // Time HHMMSS.frac (DICOM allows partials)
       if (!/^\d{2,6}(\.\d+)?$/.test(trimmed)) {
-        throw new Error(`Error on tag: ${key}\nTM must be in format HHMMSS or HHMMSS.frac`);
+        throw new Error(`Error on tag: ${key}\nTM must be in format HHMMSS or HHMMSS.frac. Value Received: ${trimmed}`);
       }
       return trimmed;
     }
 
     case "PN": { // Person Name (simplified)
       if (trimmed.length > 64) {
-        throw new Error(`Error on tag: ${key}\nPN exceeds max length of 64`);
+        throw new Error(`Error on tag: ${key}\nPN exceeds max length of 64. Value Received: ${trimmed}`);
       }
       return trimmed;
     }
 
     case "IS": { // Integer String
       if (!/^-?\d+$/.test(trimmed)) {
-        throw new Error(`Error on tag: ${key}\nIS must be a valid integer`);
+        throw new Error(`Error on tag: ${key}\nIS must be a valid integer. Value Received: ${trimmed}`);
       }
       return trimmed;
     }
 
     case "DS": { // Decimal String
       if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
-        throw new Error(`Error on tag: ${key}\nDS must be a valid decimal number`);
+        throw new Error(`Error on tag: ${key}\nDS must be a valid decimal number. Value Received: ${trimmed}`);
       }
       return trimmed;
     }
