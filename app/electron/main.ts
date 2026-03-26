@@ -245,12 +245,11 @@ function applyTransformation(
 
 
     case "HASH": {
-      originalValue
-      if (typeof originalValue != "string"  && typeof originalValue!= "number") {
+      if (typeof originalValue !== "string") {
         // Cannot hash
-        throw new Error(`Cannot hash key: ${key}. Can only hash types number or string`);
+        throw new Error(`Cannot hash key: ${key}. Can only hash strings`);
       }
-      const hashed = crypto.createHash("sha256").update(String(originalValue)).digest("hex");
+      const hashed = crypto.createHash("sha256").update(originalValue).digest("hex");
       return enforceVR(key,cleanHash(hashed, vr),vr);
     }
 
@@ -287,7 +286,6 @@ function enforceVR(key:keyof BaseDicomMetadata, value: string, vr: string): stri
   }
 
   const trimmed = value.trim();
-  console.log(`TrimmedVal: ${trimmed}`)
 
   switch (vr) {
     case "CS": { // Code String (max 16, uppercase, no leading/trailing spaces)
