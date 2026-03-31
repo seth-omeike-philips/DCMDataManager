@@ -7,6 +7,7 @@ import Draggable from "react-draggable"
 import { useModal } from "@/context/ModalContext"
 import UploadProfileHelp from "./UploadProfileHelp"
 import { Loader2 } from "lucide-react"
+import {mappingDescription} from "@/policy/MappingDescription";
 
 interface Props {
   dataSet: Record<string, BaseDicomMetadata>
@@ -21,6 +22,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
 
     const [profile, setProfile] = useState<string>("ANONYMIZE")
     const [status, setStatus] = useState<Status>("idle")
+    
     
     const [policyLogic, setPolicyLogic] = useState(basePolicyLogic)
     const {openModal} = useModal();
@@ -302,9 +304,26 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                             key={key}
                             className="flex justify-between items-center"
                         >
-                            <span className="text-sm font-medium">
-                            {key}
-                            </span>
+                            <div className="relative flex flex-col pr-3 pt-3">
+                                {mappingDescription[key as keyof typeof mappingDescription]?.description && (
+
+                                
+                                    <button
+                                    onClick={() => openModal({
+                                        type: "info",
+                                        title: `Mapping Description for ${key}`,
+                                        message: mappingDescription[key as keyof typeof mappingDescription]?.description || `No description available for ${key}.`
+                                    })}
+                                    className="absolute top-0 right-0 rounded-full w-3 h-3 p-2 
+                                    bg-transparent border-1 border-blue-300 hover:border-blue-500
+                                    flex items-center justify-center text-sm font-bold"
+                                    >
+                                    ?
+                                    </button>
+                                )}
+                                <span className="text-sm font-medium">{key} </span>
+                            </div>
+                           
 
                             <div className="flex flex-col">
                                 <select value={policyLogic[profile][typedKey]?.type ?? "COULD_NOT_FIND_TAG"}

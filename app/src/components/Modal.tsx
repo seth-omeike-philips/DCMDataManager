@@ -30,7 +30,7 @@ const Modal: React.FC<Props> = ({ type, title, message, closeModal }) => {
       >
         <div
           ref={nodeRef}
-          className={`bg-slate-900 text-white p-6 rounded-lg shadow-lg border ${color} w-[400px]`}
+          className={`bg-slate-900 text-white p-6 rounded-lg shadow-lg border ${color} w-[500px]`}
           onClick={(e) => e.stopPropagation()}
         >
           {/* header (drag handle) */}

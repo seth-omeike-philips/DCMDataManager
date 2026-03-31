@@ -129,6 +129,7 @@ const mapper = (data:BaseDicomMetadata, key:keyof BaseDicomMetadata) => {
       return ""
     }
 
+    // PatientName
     if (Array.isArray(value) && value.every(v => typeof v === "object" && "Alphabetic" in v)) {
       const mappedValue = value.map(v => {
           if (typeof v.Alphabetic !== "string") {
@@ -148,6 +149,7 @@ const mapper = (data:BaseDicomMetadata, key:keyof BaseDicomMetadata) => {
     }
   }
 
+  // PatientID or OtherPatientIDs
   else if (key === "PatientID" || key === "OtherPatientIDs") {
     const value = data[key]
     if (typeof value !== "string") {
@@ -158,6 +160,7 @@ const mapper = (data:BaseDicomMetadata, key:keyof BaseDicomMetadata) => {
 
   }
 
+  // Study Date
   else if (key === "StudyDate") {
     const rawDate = data[key]
     if (typeof rawDate !== "string") {
@@ -171,6 +174,7 @@ const mapper = (data:BaseDicomMetadata, key:keyof BaseDicomMetadata) => {
     const newYear = Math.floor(Math.random()*30) + 1990
     return `${String(newYear)}${String(newMonth).padStart(2, '0')}${String(newDay).padStart(2, '0')}`
   }
+  // PatientSex
   else if (key === "PatientSex") {
     // Even Represents Male, Odd represents Female
     const value = data[key]
@@ -196,6 +200,7 @@ const mapper = (data:BaseDicomMetadata, key:keyof BaseDicomMetadata) => {
     
     
   }
+  // PatientBirthDate
   else if (key === "PatientBirthDate") {
     const value = data[key]
     if (value === undefined || value === "") {
@@ -455,25 +460,37 @@ ipcMain.handle("write-dicom",async (
           const originalDicom = dicomStore[filePath]
           const dicomCopy = dcmjs.data.DicomMessage.readFile(originalDicom.write())
           
-
           for (const key of Object.keys(modifiedDataset) as (keyof BaseDicomMetadata)[]) {
 
+            console.log(`Processing tag: ${key}`)
             const tagInfo = dcmjs.data.DicomMetaDictionary.nameMap[key]
-            if (!tagInfo) continue
+            if (!tagInfo) {
+              console.warn(`No tag info found for key: ${key}. Skipping this tag.`)
+              continue;
+            }
 
             const tagCode = tagInfo.tag.replace(/[(),]/g, "")
             const element = dicomCopy.dict[tagCode]
 
             
-            if (!element) continue
-            if (["OB","OW","OF","UN","SQ"].includes(element.vr)) continue;
+            if (!element) {
+              console.warn(`No element found in DICOM for key: ${key} with tag code: ${tagCode}. Skipping this tag.`)
+              continue;
+            }
+            if (["OB","OW","OF","UN","SQ"].includes(element.vr)) {
+              console.warn(`Tag: ${key} with tag code: ${tagCode} has VR of ${element.vr}, which is not supported for editing. Skipping this tag.`)
+              continue;
+            };
             const vr = element.vr;
 
             const newValue = applyTransformation(dataSet[filePath],modifiedDataset,key,vr);
             if (newValue == null) {
               delete dicomCopy.dict[tagCode];
+              console.warn(`Value for key: ${key} with tag code: ${tagCode} is null. Removing this tag.`)
               continue;
+            
             }
+            console.log(`------------------\n${element.tag} (${key})\nOriginal Value: ${element.Value}\nNew Value: ${newValue}\n------------------`)
             element.Value = Array.isArray(newValue) ? newValue : [newValue];
           }
 

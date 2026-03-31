@@ -13,9 +13,20 @@ const UploadProfileHelp: React.FC = () => {
         Required structure:
 
           {
-            "PatientName": "REMOVE",
-            "PatientID": "HASH",
-            "StudyDate": "KEEP"
+            "AccessionNumber": {
+              "type": "CUSTOM",
+              "value": "[NEW]"
+            },
+            "AcquisitionDate": {
+              "type": "CUSTOM",
+              "value": "20260515"
+            },
+            "AcquisitionNumber": {
+              "type": "KEEP"
+            },
+            "AcquisitionTime": {
+              "type": "KEEP"
+            },
           }
 
         Explanation:
@@ -25,8 +36,10 @@ const UploadProfileHelp: React.FC = () => {
           REMOVE
           KEEP
           HASH
-          REPLACE_WITH_UNDEFINED
-
+          CUSTOM (requires a "value" field for the new value)
+          GENERATE_UID
+          MAP (for mapping to a specific value based on original value)
+      
         The tag names must match the DICOM metadata keys used by the application.
     `
     })
