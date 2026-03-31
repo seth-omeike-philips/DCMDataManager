@@ -4,7 +4,7 @@ import { BaseDicomMetadata } from "@/types/BaseDicomMetadata"
 import { useFileContext} from "../context/FileContext"
 import { useModal } from "@/context/ModalContext"
 import { Loader2 } from "lucide-react"
-import { Transformation } from "@/policy/PolicyLogic"
+import { TagAction } from "@/policy/PolicyLogic"
 
 
 interface NavbarProps {
@@ -20,7 +20,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,handleClos
   const [exportStatus, setExportStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const {uploadRoot} = useFileContext();
   const { openModal } = useModal();
-  const [modifiedDataSet, setModifiedDataSet] = useState<Record<string, Record<keyof BaseDicomMetadata, Transformation>>>({});
+  const [modifiedDataSet, setModifiedDataSet] = useState<Record<string, Record<keyof BaseDicomMetadata, TagAction>>>({});
   const handleEditTags = () => {
     if (!dataSet) return
     setShowModal(true)
