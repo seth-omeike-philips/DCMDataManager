@@ -6,13 +6,14 @@ import { BaseDicomMetadata } from "../src/types/BaseDicomMetadata";
 import { dialog } from "electron"
 import { Menu } from "electron"
 import crypto from "crypto";
-
+import { readRawAndExtractDicom } from './RAW/RawReader';
 
 import fs from "fs";
 import dcmjs from "dcmjs";
 import path from 'node:path'
 import { dicomStore } from '../src/storage/DicomStore';
 import { TagAction } from '@/policy/PolicyLogic';
+import { rawReaderTest } from './RAW/RawReaderTest';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
@@ -533,4 +534,14 @@ ipcMain.handle("select-export-folder", async ():Promise<ExportFolderResult> => {
 ipcMain.handle("hash-deterministic", async (_events, value:string):Promise<String> => {
   return crypto.createHash("sha256").update(value).digest("hex");
 })
-// Account for VR_Limits
+
+ipcMain.handle("read-raw-and-extract-dicom", async (_events, rawPath:string) => {
+  try {
+    const res= await rawReaderTest(rawPath);
+    console.log(`Result: ${res}`)
+    return res;
+  } catch (err) {
+    console.error("Error reading raw and extracting DICOM:", err)
+    throw err;
+  }
+})

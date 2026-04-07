@@ -8,7 +8,7 @@ import { Loader2 } from "lucide-react"
 import MainApp from "./MainApp"
 import UploadCard from "./UploadCard"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-
+import { readRawAndExtractDicom } from "electron/RAW/RawReader"
 
 
 const DicomApp: React.FC = () => {
@@ -33,6 +33,7 @@ const DicomApp: React.FC = () => {
         setIsDragging(false);
         setIsLoading(false);
     }
+    
 
 
     const asyncPool = async<T,R>(limit:number, items:T[], iteratorFn:(item:T)=> Promise<R>):Promise<R[]> => {
@@ -153,6 +154,9 @@ const DicomApp: React.FC = () => {
             throw new Error("Empty Folder");
         }
 
+        const raw_path = "C:\\Users\\320308966\\Documents\\1.3.46.670589.61.128.7.2026020311233319822097493910003.rawmdu";
+        const result = await window.api.readRawAndExtractDicom(raw_path);
+        console.log(`Result: ${result}`)
         
         
         setIsLoading(true);

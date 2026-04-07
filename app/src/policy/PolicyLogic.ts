@@ -18,7 +18,7 @@ export const policyLogicFunction = (tagActions: Partial<Record<keyof BaseDicomMe
 ): Record<string, Record<keyof BaseDicomMetadata, TagAction>> => {
 
   const modifiedDataSet: Record<string,Record<keyof BaseDicomMetadata, TagAction>> = {};
-  for (const [filePath, filePathValue] of Object.entries(dataSet)) {
+  for (const [filePath, _] of Object.entries(dataSet)) {
 
     modifiedDataSet[filePath] = {} as Record<keyof BaseDicomMetadata,TagAction>;
 

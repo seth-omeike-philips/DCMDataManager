@@ -1,6 +1,7 @@
 import { TagAction } from '@/policy/PolicyLogic';
 import { BaseDicomMetadata } from '@/types/BaseDicomMetadata';
 import { ipcRenderer, contextBridge } from 'electron'
+import { readRawAndExtractDicom } from './RAW/RawReader';
 console.log("Preload loaded");
 
 // --------- Expose some API to the Renderer process ---------
@@ -34,6 +35,8 @@ contextBridge.exposeInMainWorld("api", {
     ipcRenderer.invoke("write-dicom", modifiedDatasets, dataSet,uploadRoot),
   selectExportFolder: ():Promise<ExportFolderResult> =>
     ipcRenderer.invoke("select-export-folder"),
+  readRawAndExtractDicom: (rawPath: string):Promise<ReturnType<typeof readRawAndExtractDicom>> =>
+    ipcRenderer.invoke("read-raw-and-extract-dicom", rawPath),
 
 })
 

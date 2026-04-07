@@ -312,7 +312,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                                     onClick={() => openModal({
                                         type: "info",
                                         title: `Mapping Description for ${key}`,
-                                        message: mappingDescription[key as keyof typeof mappingDescription]?.description || `No description available for ${key}.`
+                                        message: mappingDescription[key as keyof typeof mappingDescription]?.description || `No mappingdescription available for ${key}.`
                                     })}
                                     className="absolute top-0 right-0 rounded-full w-3 h-3 p-2 
                                     bg-transparent border-1 border-blue-300 hover:border-blue-500
