@@ -8,6 +8,7 @@ import { useModal } from "@/context/ModalContext"
 import UploadProfileHelp from "./UploadProfileHelp"
 import { Loader2 } from "lucide-react"
 import {mappingDescription} from "@/policy/MappingDescription";
+import EditTagsRenderTags from "./EditTagsRenderTags"
 
 interface Props {
   dataSet: Record<string, BaseDicomMetadata>
@@ -17,6 +18,16 @@ interface Props {
 }
 
 type Status = "idle"| "success" | "error"
+type TagPath = (string | number)[];
+type PolicyNode =
+  | { type: "primitive"; action?: TagPolicy }
+  | { type: "object"; children: Record<string, PolicyNode> }
+  | { type: "array"; items: PolicyNode[] };
+
+type TagPolicy = {
+  type: string;
+  value?: string;
+};
 
 const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,setModifiedDataSet }) => {
 
@@ -30,6 +41,8 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
     const nodeRef = useRef<HTMLDivElement>(null);
 
     const handleTagChange = (key: keyof BaseDicomMetadata,tagAction: unknown) => {
+        console.log(  dataSet[Object.keys(dataSet)[0]]
+                    )
         setPolicyLogic(prev => ({
             ...prev,
             [profile]: {
@@ -279,89 +292,56 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
 
                     {/* Tag List */}
                     <div className="space-y-3">
-                    {Object.keys(
-                        dataSet[Object.keys(dataSet)[0]]
+                    {Object.entries(
+                        dataSet[Object.keys(dataSet)[0]] // Sample the first file's metadata to get the list of tags
                     )
                     .sort((a, b) => {
                     const isTag = (k: string) => /^[0-9A-Fa-f]{8}$/.test(k)
 
-                    const aIsTag = isTag(a)
-                    const bIsTag = isTag(b)
+                    const aIsTag = isTag(a[0])
+                    const bIsTag = isTag(b[0])
 
                     // Alphabetical keys first
                     if (!aIsTag && bIsTag) return -1    
                     if (aIsTag && !bIsTag) return 1
 
                     // If both same type, sort normally
-                    return a.localeCompare(b)
+                    return a[0].localeCompare(b[0])
                     })
-                    .filter(key => !NonEditableTags.has(key))
+                    .filter(key => !NonEditableTags.has(key[0] as keyof BaseDicomMetadata))
                     .map(key => {
-                        const typedKey = key as keyof BaseDicomMetadata
+                        const typedKey = key[0] as keyof BaseDicomMetadata
 
                         return (
                         <div
-                            key={key}
-                            className="flex justify-between items-center"
+                            key={key[0]}
+                            className="flex flex-col justify-between items-center"
                         >
-                            <div className="relative flex flex-col pr-3 pt-3">
-                                {mappingDescription[key as keyof typeof mappingDescription]?.description && (
+                            <div className="flex justify-between items-center w-full">
+                                <div className="relative flex flex-col pr-3 pt-3">
+                                    {mappingDescription[key[0] as keyof typeof mappingDescription]?.description && (
 
-                                
-                                    <button
-                                    onClick={() => openModal({
-                                        type: "info",
-                                        title: `Mapping Description for ${key}`,
-                                        message: mappingDescription[key as keyof typeof mappingDescription]?.description || `No mappingdescription available for ${key}.`
-                                    })}
-                                    className="absolute top-0 right-0 rounded-full w-3 h-3 p-2 
-                                    bg-transparent border-1 border-blue-300 hover:border-blue-500
-                                    flex items-center justify-center text-sm font-bold"
-                                    >
-                                    ?
-                                    </button>
-                                )}
-                                <span className="text-sm font-medium">{key} </span>
+                                    
+                                        <button
+                                        onClick={() => openModal({
+                                            type: "info",
+                                            title: `Mapping Description for ${key[0]}`,
+                                            message: mappingDescription[key[0] as keyof typeof mappingDescription]?.description || `No mappingdescription available for ${key[0]}.`
+                                        })}
+                                        className="absolute top-0 right-0 rounded-full w-3 h-3 p-2 
+                                        bg-transparent border-1 border-blue-300 hover:border-blue-500
+                                        flex items-center justify-center text-sm font-bold"
+                                        >
+                                        ?
+                                        </button>
+                                    )}
+                                    
+                                </div>
+                            
                             </div>
-                           
 
-                            <div className="flex flex-col">
-                                <select value={policyLogic[profile][typedKey]?.type ?? "COULD_NOT_FIND_TAG"}
-                                    onChange={e => handleTagChange( typedKey,e.target.value as unknown)}
-                                    className="bg-slate-100 border rounded px-2 py-1"
-                                >
-                                    <option value="KEEP">
-                                        KEEP
-                                    </option>
-                                    <option value="REMOVE">
-                                        REMOVE
-                                    </option>
-                                    <option value="HASH">
-                                        HASH
-                                    </option>
-                                    <option value="GENERATE_UID">
-                                        GENERATE_UID
-                                    </option>
-                                    <option value="MAP">
-                                        MAP
-                                    </option>
-                                    <option value="CUSTOM">
-                                        CUSTOM
-                                    </option>
-
-                                </select>
-                                {policyLogic[profile][typedKey]?.type === "CUSTOM" && (
-                                    <div className="flex ">
-                                        <input
-                                        type="text"
-                                        className="border mt-1 max-w-40 px-2 py-1 bg-slate-100 dark:bg-slate-100"
-                                        placeholder="Input custom value..."
-                                        value={policyLogic[profile][typedKey]?.value || ""}
-                                        onChange={(e) =>handleCustomValueChange(typedKey, e.target.value)
-                                        }
-                                        />
-                                    </div>
-                                )}
+                            <div className="w-full mt-2">
+                                <EditTagsRenderTags key={key[0]} tagKey={key[0]} value={key[1]} profile={profile} handleCustomValueChange={handleCustomValueChange} handleTagChange={handleTagChange}   />
                             </div>
 
                         </div>
