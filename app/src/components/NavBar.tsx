@@ -5,6 +5,7 @@ import { useFileContext} from "../context/FileContext"
 import { useModal } from "@/context/ModalContext"
 import { Loader2 } from "lucide-react"
 import { TagAction } from "@/policy/PolicyLogic"
+import { PathKey } from "@/policy/BasePolicyLogic"
 
 
 interface NavbarProps {
@@ -20,7 +21,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,handleClos
   const [exportStatus, setExportStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const {uploadRoot} = useFileContext();
   const { openModal } = useModal();
-  const [modifiedDataSet, setModifiedDataSet] = useState<Record<string, Record<keyof BaseDicomMetadata, TagAction>>>({});
+  const [modifiedDataSet, setModifiedDataSet] = useState<Record<string, Record<PathKey, TagAction>>>({});
   const handleEditTags = () => {
     if (!dataSet) return
     setShowModal(true)
@@ -37,6 +38,8 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,handleClos
       setExportStatus("loading")
 
       // Export
+      console.log("Exporting with modifiedDataSet:", modifiedDataSet);
+      return;
       const result = await window.api.writeDicom(modifiedDataSet,dataSet, uploadRoot)
       console.log(result)
       if (result.success && result.exportPath) {

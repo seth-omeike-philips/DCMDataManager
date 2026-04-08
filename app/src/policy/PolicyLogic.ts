@@ -1,5 +1,6 @@
 import { BaseDicomMetadata } from "@/types/BaseDicomMetadata";
 import { NonEditableTags } from "./NonEditableTags";
+import { PathKey } from "./BasePolicyLogic";
 
 // We will need functions for each of the tags 
 
@@ -14,15 +15,15 @@ export type TagAction =
 
 
 
-export const policyLogicFunction = (tagActions: Partial<Record<keyof BaseDicomMetadata, TagAction>>,dataSet: Record<string, BaseDicomMetadata>
-): Record<string, Record<keyof BaseDicomMetadata, TagAction>> => {
+export const policyLogicFunction = (tagActions: Partial<Record<PathKey, TagAction>>,dataSet: Record<string, BaseDicomMetadata>
+): Record<string, Record<PathKey, TagAction>> => {
 
-  const modifiedDataSet: Record<string,Record<keyof BaseDicomMetadata, TagAction>> = {};
+  const modifiedDataSet: Record<string,Record<PathKey, TagAction>> = {};
   for (const [filePath, _] of Object.entries(dataSet)) {
 
-    modifiedDataSet[filePath] = {} as Record<keyof BaseDicomMetadata,TagAction>;
+    modifiedDataSet[filePath] = {} as Record<PathKey,TagAction>;
 
-    for (const key of Object.keys(tagActions) as (keyof BaseDicomMetadata)[]) {
+    for (const key of Object.keys(tagActions) as PathKey[]) {
       const action = tagActions[key];
 
       if (NonEditableTags.has(key)) continue;

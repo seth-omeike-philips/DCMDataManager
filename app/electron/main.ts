@@ -437,7 +437,7 @@ ipcMain.handle("read-multiple-files",
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
 ipcMain.handle("write-dicom",async (
   _event,
-  modifiedDatasets: Record<string, Record<keyof BaseDicomMetadata, TagAction>>,
+  modifiedDatasets: Record<string, Record<string, TagAction>>,
   dataSet: Record<string, BaseDicomMetadata>,
   uploadRoot:string|null
   ):Promise<ExportResult> => {

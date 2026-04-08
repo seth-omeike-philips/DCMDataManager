@@ -1,4 +1,5 @@
-import { basePolicyLogic } from '@/policy/BasePolicyLogic';
+import { basePolicyLogic, PolicyLogic } from '@/policy/BasePolicyLogic';
+import { TagAction } from '@/policy/PolicyLogic';
 import { BaseDicomMetadata } from '@/types/BaseDicomMetadata';
 import React, { useState } from 'react'
 type TagPath = (string | number)[];
@@ -16,30 +17,36 @@ interface Props {
     tagKey: string;
     value: any;
     profile: string;
-    handleCustomValueChange: (tagKey: keyof BaseDicomMetadata, value: string) => void;
-    handleTagChange: (tagKey: keyof BaseDicomMetadata, actionType: string) => void;
+    policyLogic: PolicyLogic;
+    setPolicyLogic: React.Dispatch<React.SetStateAction<PolicyLogic>>;
+    handleTagChange:  (path: TagPath, tagAction: TagAction["type"], value: string | undefined) => void;
 }
-const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile, handleCustomValueChange, handleTagChange }) => {
+const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile,policyLogic,setPolicyLogic,handleTagChange }) => {
 
-    const [policyLogic, setPolicyLogic] = useState(basePolicyLogic);
+
     const renderField = (tagKey:string, value:any, path: TagPath, depthCount:number) => {
         const typedKey = tagKey as keyof BaseDicomMetadata;
         if (Array.isArray(value)) {
             return (
             <div>
+                {/**If it is just an array and not an array of objects */}
+                {value.every((item) => typeof item !== "object" || item === null) && (
+                    <div className="flex font-medium ">{tagKey} [ ]</div>
+                )}
                 {value.map((item, index) => (
-                    <div key={`${[...path, tagKey, index].join(".")}`}>
-                    {renderField(tagKey, item, [...path, index], depthCount + 1)}
+                    <div key={`${[...path, tagKey, index].join(".")}`} className={`${typeof item !== "object" ? "border-l pl-4 ml-2" : ""}`}>
+                        {renderField(tagKey, item, [...path, index], depthCount + 1)}
                     </div>
                 ))}
             </div>
             );
         }
         
-        if (typeof value === "object" && value !== null) {
+        if (typeof value === "object" && value !== null && tagKey !== "_vrMap" && tagKey !== "PixelData") {
+            
             return (
                 <div className="">
-                    <div className="flex">{tagKey}</div>
+                    <div className="flex font-medium">{tagKey}</div>
                     <div className="border-l pl-4 ml-2">
                         {Object.entries(value).map(([childKey, childValue]) => (
                             
@@ -52,8 +59,6 @@ const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile, handleCust
                 </div>
             );
         }
-        console.log(`path: ${path}`);
-        console.log(`tagKey: ${tagKey} | ${policyLogic[profile][typedKey]?.type ?? "COULD_NOT_FIND_TAG"}`);
         const pathKey = path.join(".");
         let pathName = pathKey.split(".").slice(-1)[0];
 
@@ -63,6 +68,9 @@ const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile, handleCust
             pathName = pathKey;
         }
         // Primitive
+        if (pathName === "_vrMap" || pathName === "PixelData") {
+            return null; // Skip rendering for these keys
+        }
         return (
             <div className="flex flex-row items-center justify-between w-full">
 
@@ -71,8 +79,8 @@ const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile, handleCust
                 </div>
                 
                 <div className="flex flex-col pb-1">
-                    <select value={policyLogic[profile][typedKey]?.type ?? "COULD_NOT_FIND_TAG"}
-                        onChange={e => handleTagChange( typedKey,e.target.value as unknown)}
+                    <select value={policyLogic[profile][pathKey]?.type ?? "COULD_NOT_FIND_TAG"}
+                        onChange={e => handleTagChange( path, e.target.value as TagAction["type"], undefined)}
                         className="bg-slate-100 border rounded px-2 py-1"
                     >
                         <option value="KEEP">
@@ -95,14 +103,14 @@ const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile, handleCust
                         </option>
 
                     </select>
-                    {policyLogic[profile][typedKey]?.type === "CUSTOM" && (
+                    {policyLogic[profile][pathKey]?.type === "CUSTOM" && (
                         <div className="flex ">
                             <input
                             type="text"
                             className="border mt-1 max-w-40 px-2 py-1 bg-slate-100 dark:bg-slate-100"
                             placeholder="Input custom value..."
-                            value={policyLogic[profile][typedKey]?.value || ""}
-                            onChange={(e) =>handleCustomValueChange(typedKey, e.target.value)}
+                            value={policyLogic[profile][pathKey]?.value || ""}
+                            onChange={(e) =>handleTagChange([pathKey], "CUSTOM", e.target.value)}
                             />
                         </div>
                     )}

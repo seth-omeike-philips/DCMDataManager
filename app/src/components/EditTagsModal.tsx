@@ -40,65 +40,51 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
 
     const nodeRef = useRef<HTMLDivElement>(null);
 
-    const handleTagChange = (key: keyof BaseDicomMetadata,tagAction: unknown) => {
-        console.log(  dataSet[Object.keys(dataSet)[0]]
-                    )
-        setPolicyLogic(prev => ({
-            ...prev,
-            [profile]: {
-                ...prev[profile],
-                [key]: {type:tagAction}
-            }
-        }))
-        
-        // For persistance
-        switch (tagAction) {
-            case "KEEP":
-                basePolicyLogic[profile][key] = {type:tagAction};
-                break;
-            case "REMOVE":
-                basePolicyLogic[profile][key] = {type:tagAction};
-                break;
-            case "MAP":
-                basePolicyLogic[profile][key] = {type:tagAction};
-                break;
-            case "GENERATE_UID":
-                basePolicyLogic[profile][key] = {type:tagAction};
-                break;
-            case "HASH":
-                basePolicyLogic[profile][key] = {type:tagAction};
-                break;
-            case "CUSTOM":
-                // Changes made here are handled by handleCustomValueChange
-                basePolicyLogic[profile][key] = {type:tagAction, value:""};
-                setPolicyLogic(prev => ({
-                    ...prev,
-                    [profile]: {
-                        ...prev[profile],
-                        [key]: {type:tagAction,value:""}
+    const handleTagChange = (path: TagPath, tagAction: TagAction["type"], value: string|undefined) => {
+        const pathKey = path.join(".");
+
+        console.log("Changing tag policy for:", pathKey, "to", tagAction, "with value:", value);
+        if (tagAction === "CUSTOM") {
+            setPolicyLogic(prev => ({
+                ...prev,
+                [profile]: {
+                    ...prev[profile],
+                    [pathKey]: {
+                        ...(prev[profile]?.[pathKey] || {}),
+                        type: tagAction,
+                        value: value || "" // Ensure value is set for CUSTOM action
                     }
-                }))
-                break;
-            default:
-                ;//Nothing to do, perhaps raise error 
-        }
-    }
-    const handleCustomValueChange = (key: keyof BaseDicomMetadata, value:string) => {
-        setPolicyLogic(prev => ({
-            ...prev,
-            [profile]: {
+                }
+            }));
+        } else {
+            setPolicyLogic(prev => ({
+                ...prev,
+                [profile]: {
                 ...prev[profile],
-                [key]: {type: "CUSTOM",value}
-            }
-        }));
-        //Ensure persistance when EditTagsModal is closed
-        basePolicyLogic[profile][key] = {type:"CUSTOM", value:value}
-    }
+                [pathKey]: {
+                    ...(prev[profile]?.[pathKey] || {}),
+                    type: tagAction
+                }
+                }
+            }));
+        }
+
+            // Ensure persistence in basePolicyLogic
+        if (!basePolicyLogic[profile]) {
+            basePolicyLogic[profile] = {} as Record<string, TagAction>;
+        }
+        if (tagAction === "CUSTOM" && value !== undefined) {
+            basePolicyLogic[profile][pathKey] = { type: tagAction, value: value };
+        } else if (tagAction !== "CUSTOM") {
+            basePolicyLogic[profile][pathKey] = { type: tagAction };
+        }
+    };
+
 
     const handleExportProfile = () => {
         try {
             const currentProfile = policyLogic[profile];
-
+            
             if (!currentProfile) throw new Error(`Profile "${profile}" not found`);
 
             const json = JSON.stringify(currentProfile, null, 2);
@@ -130,7 +116,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
         try {
             const tagActions = policyLogic[profile];
             const modifiedDataSet = policyLogicFunction(tagActions,dataSet);
-            console.log(modifiedDataSet);
+
             setModifiedDataSet(modifiedDataSet);
 
             setStatus("success")
@@ -165,7 +151,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
 
             const text = await file.text()
             const profileName = file.name.replace(/\.[^/.]+$/, "");
-            const tags: Partial<Record<keyof BaseDicomMetadata, TagAction>> = JSON.parse(text)
+            const tags: Record<string, TagAction> = JSON.parse(text)
 
 
             if (!profileName || !tags) {
@@ -182,9 +168,9 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
             setProfile(profileName)
 
             // Enable Persistence
-            basePolicyLogic[profileName] = {} as Partial<Record<keyof BaseDicomMetadata, TagAction>>;
+            basePolicyLogic[profileName] = {} as Record<string, TagAction>;
 
-            for (const [key ,val] of Object.entries(tags) as [keyof BaseDicomMetadata,TagAction][]) {
+            for (const [key ,val] of Object.entries(tags) as [string, TagAction][]) {
                 if (!val) continue
                 basePolicyLogic[profileName][key] = val
             }
@@ -308,16 +294,16 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                     // If both same type, sort normally
                     return a[0].localeCompare(b[0])
                     })
-                    .filter(key => !NonEditableTags.has(key[0] as keyof BaseDicomMetadata))
+                    .filter(key => !NonEditableTags.has(key[0]))
                     .map(key => {
-                        const typedKey = key[0] as keyof BaseDicomMetadata
+                        const typedKey = key[0]
 
                         return (
                         <div
                             key={key[0]}
                             className="flex flex-col justify-between items-center"
                         >
-                            <div className="flex justify-between items-center w-full">
+                            <div className="flex  justify-between items-center w-full">
                                 <div className="relative flex flex-col pr-3 pt-3">
                                     {mappingDescription[key[0] as keyof typeof mappingDescription]?.description && (
 
@@ -338,10 +324,18 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                                     
                                 </div>
                             
-                            </div>
+                            
 
-                            <div className="w-full mt-2">
-                                <EditTagsRenderTags key={key[0]} tagKey={key[0]} value={key[1]} profile={profile} handleCustomValueChange={handleCustomValueChange} handleTagChange={handleTagChange}   />
+                                <div className="w-full mt-2">
+                                    <EditTagsRenderTags
+                                     key={key[0]}
+                                     tagKey={key[0]}
+                                     value={key[1]}
+                                     profile={profile} 
+                                     handleTagChange={handleTagChange}
+                                     policyLogic={policyLogic} 
+                                     setPolicyLogic={setPolicyLogic}/>
+                                </div>
                             </div>
 
                         </div>
