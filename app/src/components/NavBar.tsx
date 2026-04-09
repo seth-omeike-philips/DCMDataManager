@@ -38,8 +38,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,handleClos
       setExportStatus("loading")
 
       // Export
-      console.log("Exporting with modifiedDataSet:", modifiedDataSet);
-      return;
+      
       const result = await window.api.writeDicom(modifiedDataSet,dataSet, uploadRoot)
       console.log(result)
       if (result.success && result.exportPath) {

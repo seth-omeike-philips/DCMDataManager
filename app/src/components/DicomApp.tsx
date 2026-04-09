@@ -8,7 +8,6 @@ import { Loader2 } from "lucide-react"
 import MainApp from "./MainApp"
 import UploadCard from "./UploadCard"
 import { Card, CardContent, CardHeader, CardTitle } from "./ui/card"
-import { readRawAndExtractDicom } from "electron/RAW/RawReader"
 
 
 const DicomApp: React.FC = () => {

@@ -1,31 +1,20 @@
-import { basePolicyLogic, PolicyLogic } from '@/policy/BasePolicyLogic';
+import { PolicyLogic } from '@/policy/BasePolicyLogic';
 import { TagAction } from '@/policy/PolicyLogic';
-import { BaseDicomMetadata } from '@/types/BaseDicomMetadata';
-import React, { useState } from 'react'
+import React from 'react'
 type TagPath = (string | number)[];
-type PolicyNode =
-  | { type: "primitive"; action?: TagPolicy }
-  | { type: "object"; children: Record<string, PolicyNode> }
-  | { type: "array"; items: PolicyNode[] };
 
-type TagPolicy = {
-  type: string;
-  value?: string;
-};
 
 interface Props {
     tagKey: string;
     value: any;
     profile: string;
     policyLogic: PolicyLogic;
-    setPolicyLogic: React.Dispatch<React.SetStateAction<PolicyLogic>>;
     handleTagChange:  (path: TagPath, tagAction: TagAction["type"], value: string | undefined) => void;
 }
-const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile,policyLogic,setPolicyLogic,handleTagChange }) => {
+const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile,policyLogic,handleTagChange }) => {
 
 
     const renderField = (tagKey:string, value:any, path: TagPath, depthCount:number) => {
-        const typedKey = tagKey as keyof BaseDicomMetadata;
         if (Array.isArray(value)) {
             return (
             <div>

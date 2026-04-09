@@ -1,4 +1,3 @@
-import { BaseDicomMetadata } from "@/types/BaseDicomMetadata";
 import { TagAction } from "./PolicyLogic";
 
 

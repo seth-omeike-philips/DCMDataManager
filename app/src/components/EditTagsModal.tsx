@@ -19,15 +19,8 @@ interface Props {
 
 type Status = "idle"| "success" | "error"
 type TagPath = (string | number)[];
-type PolicyNode =
-  | { type: "primitive"; action?: TagPolicy }
-  | { type: "object"; children: Record<string, PolicyNode> }
-  | { type: "array"; items: PolicyNode[] };
 
-type TagPolicy = {
-  type: string;
-  value?: string;
-};
+
 
 const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,setModifiedDataSet }) => {
 
@@ -296,7 +289,6 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                     })
                     .filter(key => !NonEditableTags.has(key[0]))
                     .map(key => {
-                        const typedKey = key[0]
 
                         return (
                         <div
@@ -333,8 +325,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
                                      value={key[1]}
                                      profile={profile} 
                                      handleTagChange={handleTagChange}
-                                     policyLogic={policyLogic} 
-                                     setPolicyLogic={setPolicyLogic}/>
+                                     policyLogic={policyLogic}/>
                                 </div>
                             </div>
 
