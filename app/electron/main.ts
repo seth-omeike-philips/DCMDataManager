@@ -219,7 +219,7 @@ const mapper = (data:BaseDicomMetadata, path:(string|number)[]) => {
   return "";
 }
 
-function applyTransformation(
+function resolveNewValue(
   data: BaseDicomMetadata,
   originalValue: any,
   modifiedDataset: Record<string, TagAction>,
@@ -228,13 +228,12 @@ function applyTransformation(
 ): any {
   const pathKey = path.join(".");
   const transformation = modifiedDataset[pathKey];
-
-  if (!transformation) return undefined;
-
-
-  if (!originalValue && originalValue !== 0) {
+  console.log(`Applying transformation for path: ${pathKey} with originalValue: ${originalValue} and VR: ${vr}. Transformation: ${JSON.stringify(transformation)}`)
+  if (!transformation) {
+    console.warn(`No transformation found for path: ${pathKey}. Returning original value.`)
     return originalValue;
-  }
+  };
+
 
   switch (transformation.type) {
     case "REMOVE":
@@ -244,11 +243,11 @@ function applyTransformation(
       return originalValue;
 
     case "MAP":
-      const mapped= mapper(data,path);
-      if (typeof mapped === "string") {
-        return enforceVR(path,mapped, vr);
+      const mappedValue= mapper(data,path);
+      if (typeof mappedValue === "string") {
+        return enforceVR(path,mappedValue, vr);
       }
-      return mapped;
+      return mappedValue;
     
 
 
@@ -264,6 +263,7 @@ function applyTransformation(
     case "GENERATE_UID":
       return enforceVR(path,generateUID(), vr);
     case "CUSTOM":
+      console.log(`Applying custom transformation for key: ${pathKey} with original value: ${originalValue} and VR: ${vr}. NewValue: ${transformation}`)
       return enforceVR(path,transformation.value, vr);
     default:
       // Nothing to do. Perhaps throw an error as we don't expect this case to be reached?
@@ -448,41 +448,54 @@ const getElementAtPath = (dicom: any, path: (string | number)[]) => {
   for (let i = 0; i < path.length; i++) {
     const key = path[i];
 
+    if (i !== 0) {
+      console.log(`Traversing to key: ${key} at path: ${path.slice(0, i + 1).join(".")}. Current element:`, current);
+    }
     // 🔹 ROOT
     if (i === 0) {
       const tagCode = keywordToTagCode(String(key));
-      if (!tagCode) return null;
+      if (!tagCode) {
+        console.error(`❌ Unknown DICOM keyword: ${key}`);
+        return null;
+      }
+
+      if (!current[tagCode]) {
+        console.warn(`TagCode ${tagCode}, path ${path.join(".")} not found in DICOM`);
+        return;
+      }
 
       current = current[tagCode];
     }
-
+    
     // 🔹 DICOM element
     else if (current && typeof current === "object" && "Value" in current) {
       const value = current.Value;
 
-      // Case: primitive array (ImageType)
-      if (Array.isArray(value) && typeof key === "number") {
-        const intKey = parseInt(String(key), 10);
-        if (isNaN(intKey) || intKey < 0 || intKey >= value.length) {
-          console.warn(`Invalid array index: ${key} at path: ${path.join(".")}. Cannot traverse.`);
-          return null;
-        }
-        return value[intKey]; // 🔥 return primitive directly
-      }
+      if (!Array.isArray(value)) return null;
 
-      // Case: sequence
-      if (Array.isArray(value)) {
-        current = value[key];
-      } else {
+      const intKey = parseInt(String(key), 10);
+      if (isNaN(intKey) || intKey < 0 || intKey >= value.length) {
+        console.warn(`Invalid array index: ${key} at path: ${path.join(".")}`);
         return null;
       }
+
+      current = value[intKey]; // ✅ CONTINUE traversal instead of returning
     }
 
     // 🔹 Sequence item (object with tagCodes)
     else if (current && typeof current === "object") {
-      const tagCode = keywordToTagCode(String(key));
-      if (!tagCode) return null;
 
+      // PN case: Alphabetic, etc.
+      if (key in current) {
+        current = current[key];
+        continue;
+      }
+      const tagCode = keywordToTagCode(String(key));
+
+      if (!tagCode || !current[tagCode]) {
+        console.warn(`TagCode ${tagCode}, path ${path.join(".")} not found in current sequence item. current: `, current);
+        return null;
+      }
       current = current[tagCode];
     }
 
@@ -496,168 +509,295 @@ const getElementAtPath = (dicom: any, path: (string | number)[]) => {
   return current;
 };
 
-const setValueAtPath = (dicom: any, path: (string | number)[],newValue: any) => {
+
+
+const setValueAtPath = (dicom: any,  path: (string | number)[],  vr: string,  originalValue: any,  newValue: any) => {
   let current = dicom.dict;
 
-  for (let i = 0; i < path.length; i++) {
+  // 🔹 Traverse to parent of target
+  for (let i = 0; i < path.length - 1; i++) {
     const key = path[i];
 
-    // 🔹 ROOT
+    // ROOT
     if (i === 0) {
       const tagCode = keywordToTagCode(String(key));
-      if (!tagCode) {
-        console.warn(`Invalid root tag keyword: ${key}. Cannot set value at path: ${path.join(".")}`);
+      if (!tagCode || !current[tagCode]) {
+        console.warn(`Invalid root tag: ${key}`);
         return;
-      };
-
+      }
       current = current[tagCode];
       continue;
     }
 
-    // 🔹 LAST STEP
-    if (i === path.length - 1) {
-
-      // ✅ CASE 1: current is DICOM element (primitive array case)
-      if (current && typeof current === "object" && "Value" in current) {
-        const value = current.Value;
-
-        // ImageType[1] = "NEW"
-        if (Array.isArray(value) && typeof key === "number") {
-          value[key] = newValue;
-          return;
-        }
-
-        // Direct overwrite
-        current.Value = Array.isArray(newValue) ? newValue : [newValue];
-        return;
-      }
-
-      // ✅ CASE 2: current is sequence item
-      if (current && typeof current === "object") {
-        const tagCode = keywordToTagCode(String(key));
-        if (!tagCode) {
-          console.warn(`Invalid tag keyword: ${key}. Cannot set value at path: ${path.join(".")}`);
-          return;
-        }
-
-        const targetElement = current[tagCode];
-
-        if (!targetElement) {
-          console.warn(`Missing element for tagCode ${tagCode}`);
-          return;
-        }
-        console.log(`Setting value at path: ${path.join(".")} with tagCode: ${tagCode} to newValue: ${newValue}`)
-        targetElement.Value = Array.isArray(newValue)
-          ? newValue
-          : [newValue];
-
-        return;
-      }
-
-      return;
-    }
-
-    // 🔹 TRAVERSAL
-
-    // CASE: DICOM element
+    // DICOM element → go into Value
     if (current && typeof current === "object" && "Value" in current) {
       const value = current.Value;
 
-      // Sequence traversal
-      if (Array.isArray(value)) {
-        const intKey = parseInt(String(key), 10);
-        if (isNaN(intKey) || intKey < 0 || intKey >= value.length) {
-          console.warn(`Invalid array index: ${key} at path: ${path.join(".")}. Cannot traverse.`);
-          return;
+      if (!Array.isArray(value)) {
+        console.warn(`Invalid Value at ${path.join(".")}`);
+        return;
+      }
+
+      const index = parseInt(String(key), 10);
+      if (isNaN(index) || index < 0 || index >= value.length) {
+        console.warn(`Invalid index ${key} at ${path.join(".")}`);
+        return;
+      }
+
+      current = value[index];
+      continue;
+    }
+
+    // Sequence item → lookup tag
+    else if (current && typeof current === "object") {
+
+      // PN object case → STOP traversal here if next is final
+      if (key in current && !("Value" in current)) {
+        if (i === path.length - 1) {
+          // let FINAL STEP handle it
+          break;
         }
-        current = value[intKey];
+
+        current = current[key];
         continue;
       }
 
-      return;
-    }
-
-    // CASE: sequence item
-    if (current && typeof current === "object") {
+      // ✅ Sequence item case (real DICOM tags)
       const tagCode = keywordToTagCode(String(key));
-      if (!tagCode) return;
+      if (!tagCode || !current[tagCode]) {
+        console.warn(`Missing tag ${key} at ${path.join(".")}`);
+        return null;
+      }
 
       current = current[tagCode];
       continue;
     }
 
+    console.warn(`Traversal failed at ${path.join(".")}`);
     return;
   }
-};
 
-const removeValueAtPath = (dicom: any, path: (string | number)[]) => {
-  let current = dicom.dict;
+  // 🔹 FINAL STEP
+  const lastKey = path[path.length - 1];
 
-  for (let i = 0; i < path.length; i++) {
-    const key = path[i];
+  
 
-    // 🔹 ROOT
-    if (i === 0) {
-      const tagCode = keywordToTagCode(String(key));
-      if (!tagCode) return;
+  // CASE 1: current is a DICOM element
+  if (current && typeof current === "object" && "Value" in current) {
+    const element = current;
 
-      current = current[tagCode];
+    // ❌ Do not directly set SQ
+    if (vr === "SQ") {
+      console.warn(`Cannot directly set SQ at ${path.join(".")}`);
+      return;
     }
 
-    // 🔹 LAST STEP (DELETE)
-    else if (i === path.length - 1) {
-      // Case: DICOM element
-      if (current && typeof current === "object" && "Value" in current) {
-        const value = current.Value;
+    // ✅ PN (Person Name)
+    if (vr === "PN") {
+      if (!Array.isArray(element.Value) || !element.Value[0]) {
+        console.warn(`Invalid PN structure at ${path.join(".")}`);
+        return;
+      }
 
-        // primitive array (ImageType)
-        if (Array.isArray(value) && typeof key === "number") {
-          value.splice(key, 1);
+      const pnObject = element.Value[0];
+
+      if (typeof lastKey !== "string" || !(lastKey in pnObject)) {
+        console.warn(`Invalid PN field: ${lastKey}`);
+        return;
+      }
+
+      pnObject[lastKey] = String(newValue);
+      return;
+    }
+
+    // ✅ Primitive VRs (LO, SH, CS, FD, etc.)
+    if (Array.isArray(element.Value)) {
+      const index = parseInt(String(lastKey), 10);
+
+      // Indexed update (e.g., ImageType[1])
+      if (!isNaN(index)) {
+        if (index < 0 || index >= element.Value.length) {
+          console.warn(`Invalid index at ${path.join(".")}`);
           return;
         }
 
-        // delete entire element value
-        current.Value = [];
-        return;
-      }
-
-      // Case: sequence item
-      if (current && typeof current === "object") {
-        const tagCode = keywordToTagCode(String(key));
-        if (!tagCode) return;
-
-        delete current[tagCode];
+        element.Value[index] = newValue;
         return;
       }
     }
 
-    // 🔹 TRAVERSAL
-    else if (current && typeof current === "object" && "Value" in current) {
-      const value = current.Value;
+    // Direct overwrite
+    element.Value = Array.isArray(newValue)
+      ? newValue
+      : [newValue];
 
-      if (Array.isArray(value)) {
-        const intKey = parseInt(String(key), 10);
-        if (isNaN(intKey) || intKey < 0 || intKey >= value.length) {
-          console.warn(`Invalid array index: ${key} at path: ${path.join(".")}. Cannot traverse.`);
-          return;
-        }
-        current = value[intKey];
-      } else {
+    return;
+  }
+
+  // CASE 2: current is a sequence item → set tag inside it
+  if (current && typeof current === "object") {
+    const tagCode = keywordToTagCode(String(lastKey));
+
+    if (tagCode && current[tagCode]) {
+      const targetElement = current[tagCode];
+
+      if (!targetElement || !("Value" in targetElement)) {
+        console.warn(`Invalid target element at ${path.join(".")}`);
         return;
       }
-    }
 
-    else if (current && typeof current === "object") {
-      const tagCode = keywordToTagCode(String(key));
-      if (!tagCode) return;
+      targetElement.Value = Array.isArray(newValue)
+        ? newValue
+        : [String(newValue)];
 
-      current = current[tagCode];
-    }
-
-    else {
       return;
     }
   }
+
+  const isPNObject =  current &&  typeof current === "object" &&  !("vr" in current) &&  !("Value" in current);
+
+  if (isPNObject) {
+    if (!(lastKey in current)) {
+      console.warn(`Invalid PN field: ${lastKey}`);
+      return;
+    }
+
+    current[lastKey] = String(newValue);
+    return;
+  }
+
+  console.warn(`Invalid final target at ${path.join(".")}`);
+};
+
+const removeValueAtPath = (  dicom: any,  path: (string | number)[],  vr: string) => {
+  let current = dicom.dict;
+
+  // 🔹 Traverse to parent of target
+  for (let i = 0; i < path.length - 1; i++) {
+    const key = path[i];
+
+    // ROOT
+    if (i === 0) {
+      const tagCode = keywordToTagCode(String(key));
+      if (!tagCode || !current[tagCode]) {
+        console.warn(`Invalid root tag: ${key}`);
+        return;
+      }
+      current = current[tagCode];
+      continue;
+    }
+
+    // DICOM element → go into Value
+    if (current && typeof current === "object" && "Value" in current) {
+      const value = current.Value;
+
+      if (!Array.isArray(value)) {
+        console.warn(`Invalid Value at ${path.join(".")}`);
+        return;
+      }
+
+      const index = parseInt(String(key), 10);
+      if (isNaN(index) || index < 0 || index >= value.length) {
+        console.warn(`Invalid index ${key} at ${path.join(".")}`);
+        return;
+      }
+
+      current = value[index];
+      continue;
+    }
+
+    // PN object or plain object
+    if (current && typeof current === "object") {
+      // ✅ PN object case → STOP before final field
+      if (key in current && !("Value" in current)) {
+        if (i === path.length - 1) break;
+
+        current = current[key];
+        continue;
+      }
+
+      // ✅ Sequence item (tag lookup)
+      const tagCode = keywordToTagCode(String(key));
+      if (!tagCode || !current[tagCode]) {
+        console.warn(`Missing tag ${key} at ${path.join(".")}`);
+        return;
+      }
+
+      current = current[tagCode];
+      continue;
+    }
+
+    console.warn(`Traversal failed at ${path.join(".")}`);
+    return;
+  }
+
+  // 🔹 FINAL STEP
+  const lastKey = path[path.length - 1];
+
+  // ✅ CASE 1: DICOM element
+  if (current && typeof current === "object" && "Value" in current) {
+    const element = current;
+
+    if (vr === "SQ") {
+      console.warn(`Cannot directly remove SQ at ${path.join(".")}`);
+      return;
+    }
+
+    if (!Array.isArray(element.Value)) {
+      console.warn(`Invalid Value at ${path.join(".")}`);
+      return;
+    }
+
+    const index = parseInt(String(lastKey), 10);
+
+    // Remove specific index
+    if (!isNaN(index)) {
+      if (index < 0 || index >= element.Value.length) {
+        console.warn(`Invalid index at ${path.join(".")}`);
+        return;
+      }
+
+      element.Value.splice(index, 1);
+      return;
+    }
+
+    // Remove entire value
+    element.Value = [];
+    return;
+  }
+
+  // ✅ CASE 2: sequence item (THIS is your failing case)
+  if (current && typeof current === "object") {
+    const tagCode = keywordToTagCode(String(lastKey));
+
+    if (tagCode && current[tagCode]) {
+      delete current[tagCode];
+      return;
+    }
+  }
+
+  // ✅ CASE 3: PN object (LAST)
+  const isPNObject =
+    current &&
+    typeof current === "object" &&
+    !("vr" in current) &&
+    !("Value" in current) &&
+    Object.keys(current).some(k =>
+      ["Alphabetic", "Ideographic", "Phonetic"].includes(k)
+    );
+
+  if (isPNObject) {
+    if (!(lastKey in current)) {
+      console.warn(`Invalid PN field: ${lastKey}`);
+      return;
+    }
+
+    //delete current[lastKey];
+    current[lastKey].Value = [];
+    return;
+  }
+
+  console.warn(`Invalid final target at ${path.join(".")}`);
 };
 
 const getValueFromElement = (element: any) => {
@@ -669,13 +809,13 @@ const getValueFromElement = (element: any) => {
 
   if (!("Value" in element)) return undefined;
 
-  if (element.vr === "SQ") return element.Value;
+  if (element.vr === "SQ") return element.Value ?? [];
 
   const value = element.Value;
 
   if (!Array.isArray(value)) return value;
 
-  if (value.length === 0) return undefined;
+  if (value.length === 0) return [];
 
   if (value.length === 1) return value[0];
 
@@ -715,7 +855,6 @@ ipcMain.handle("write-dicom",async (
             // Checking whether this is a root tag or nested tag
             const isRoot = path.length === 1;
 
-            console.log(`Applying transformation for key: ${key} with rootTag: ${rootTag} and isRoot: ${isRoot}`)
             const tagInfo = dcmjs.data.DicomMetaDictionary.nameMap[rootTag]
             if (!tagInfo) {
               console.warn(`No tag info found for key: ${rootTag}. Skipping this tag.`)
@@ -724,31 +863,37 @@ ipcMain.handle("write-dicom",async (
 
             const tagCode = tagInfo.tag.replace(/[(),]/g, "")
             const element = getElementAtPath(dicomCopy, path)
-
-            
+            console.log(`Processing tag: ${key} with tag code: ${tagCode}. Element found at path: ${path.join(".")}:`, element)
             if (!element) {
               console.warn(`No element found in DICOM for key: ${key} with tag code: ${tagCode}. Skipping this tag.`)
               continue;
             }
-            if (isRoot &&   ["OB","OW","OF","UN","SQ"].includes(element.vr)) {
+            if (isRoot &&   ["OB","OW","OF","UN"].includes(element.vr)) {
               console.warn(`Tag: ${key} with tag code: ${tagCode} has VR of ${element.vr}, which is not supported for editing. Skipping this tag.`)
               continue;
             };
             const vr = element.vr;
-            const originalValue = getValueFromElement(element);
-            console.log(`Data for appliedTransformation for key: ${key}, tag code: ${tagCode}, VR: ${vr}, Original Value: ${originalValue}`)
-            const newValue = applyTransformation(dataSet[filePath],originalValue, modifiedDataset,path,vr);
-            if (newValue === undefined) continue;
+            const originalValue = getValueFromElement(element); // Not getting the originalValue 
+            if (originalValue === undefined) {
+              console.warn(`Skipping ${path.join(".")} — originalValue undefined`);
+              continue;
+            }
+
+            const newValue = resolveNewValue(dataSet[filePath],originalValue, modifiedDataset,path,vr);
+            if (newValue === originalValue) continue;
+            if (newValue === undefined) {
+              console.warn(`Value for key: ${key} with tag code: ${tagCode} is undefined. Skipping this tag.`)
+            }
 
             if (newValue === null) {
-              removeValueAtPath(dicomCopy, path);
+              removeValueAtPath(dicomCopy, path,vr);
               console.warn(`Value for key: ${key} with tag code: ${tagCode} is null. Removing this tag.`)
               continue;
-            
             }
-            console.log(`------------------\n${element.tag} (${key})\nOriginal Value: ${element.Value}\nNew Value: ${newValue}\n------------------`)
+            
             //element.Value = Array.isArray(newValue) ? newValue : [newValue];
-            setValueAtPath(dicomCopy, path, newValue)
+            setValueAtPath(dicomCopy, path, vr, originalValue, newValue)
+            //console.log(dicomCopy.dict[tagCode])
           }
 
           const buffer = dicomCopy.write()
@@ -761,7 +906,7 @@ ipcMain.handle("write-dicom",async (
           await fs.promises.writeFile(curOutputPath, Buffer.from(buffer))
 
         } catch (err) {
-          throw new Error(`Failed writing ${filePath}: ${err}`);
+          throw err;
         }
       }
     )

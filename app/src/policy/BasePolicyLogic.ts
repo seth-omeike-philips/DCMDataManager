@@ -52,7 +52,7 @@ export const basePolicyLogic: PolicyLogic = {
     "ImagePositionPatient": {type:"KEEP"},
     "ImageType.0": {type:"KEEP"},
     "ImageType.1": {type:"KEEP"},
-    "ImageType.2": {type:"MAP"},
+    "ImageType.2": {type:"KEEP"}, // ISSUE HERE
     //"ImageType.3": {type:"KEEP"},
     "InstanceNumber": {type:"KEEP"},
     "InstitutionalDepartmentName": {type:"KEEP"},
