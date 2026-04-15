@@ -72,6 +72,7 @@ function createWindow() {
 
   win.webContents.on('did-finish-load', () => {
     win?.webContents.send('main-process-message', (new Date).toLocaleString())
+    win?.webContents.setZoomFactor(.8);
   })
 
   // Show main window once ready

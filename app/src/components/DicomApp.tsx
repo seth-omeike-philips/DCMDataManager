@@ -31,6 +31,7 @@ const DicomApp: React.FC = () => {
         setIsFileUploaded(false);
         setIsDragging(false);
         setIsLoading(false);
+        setIsAllFilesAvailable(false);
     }
     
 
@@ -60,7 +61,6 @@ const DicomApp: React.FC = () => {
         if (meta.SOPClassUID === "1.2.840.10008.1.3.10") {
             return true;
         }
-        console.log(`Testing: ${meta.OffsetOfTheFirstDirectoryRecordOfTheRootDirectoryEntity}`)
         // DIRFILE typically won't have image indicators like InstanceNumber, AcquisitionNumber, or BitsAllocated
         const hasImageIndicators =
             meta.InstanceNumber !== undefined ||
@@ -177,11 +177,6 @@ const DicomApp: React.FC = () => {
         if (!e.target.files || e.target.files.length === 0) {
             throw new Error("Empty Folder");
         }
-
-        const raw_path = "C:\\Users\\320308966\\Documents\\1.3.46.670589.61.128.7.2026020311233319822097493910003.rawmdu";
-        const result = await window.api.readRawAndExtractDicom(raw_path);
-        console.log(`Result: ${result}`)
-        
         
         setIsLoading(true);
         await new Promise(requestAnimationFrame);
