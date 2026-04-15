@@ -129,6 +129,7 @@ const mapper = (data:BaseDicomMetadata, path:(string|number)[]) => {
       return ""
     }
 
+    
     // PatientName
     if (Array.isArray(value) && value.every(v => typeof v === "object" && "Alphabetic" in v)) {
       const mappedValue = value.map(v => {
@@ -136,10 +137,7 @@ const mapper = (data:BaseDicomMetadata, path:(string|number)[]) => {
             return v // or return a safe fallback
           }
 
-          return {
-            ...v,
-            Alphabetic: crypto.createHash("sha256").update(String(v.Alphabetic ?? "")).digest("hex").slice(0, 64)
-          }
+          return crypto.createHash("sha256").update(String(v.Alphabetic ?? "")).digest("hex").slice(0, 64)
         })
       return mappedValue
 
@@ -511,7 +509,7 @@ const getElementAtPath = (dicom: any, path: (string | number)[]) => {
 
 
 
-const setValueAtPath = (dicom: any,  path: (string | number)[],  vr: string,  originalValue: any,  newValue: any) => {
+const setValueAtPath = (dicom: any,  path: (string | number)[],  vr: string, newValue: any) => {
   let current = dicom.dict;
 
   // 🔹 Traverse to parent of target
@@ -892,7 +890,7 @@ ipcMain.handle("write-dicom",async (
             }
             
             //element.Value = Array.isArray(newValue) ? newValue : [newValue];
-            setValueAtPath(dicomCopy, path, vr, originalValue, newValue)
+            setValueAtPath(dicomCopy, path, vr, newValue)
             //console.log(dicomCopy.dict[tagCode])
           }
 

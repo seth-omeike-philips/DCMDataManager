@@ -56,15 +56,40 @@ const DicomApp: React.FC = () => {
         return Promise.all(ret)
     }
 
+    const isDicomDir = (meta: BaseDicomMetadata) => {
+        if (meta.SOPClassUID === "1.2.840.10008.1.3.10") {
+            return true;
+        }
+        console.log(`Testing: ${meta.OffsetOfTheFirstDirectoryRecordOfTheRootDirectoryEntity}`)
+        // DIRFILE typically won't have image indicators like InstanceNumber, AcquisitionNumber, or BitsAllocated
+        const hasImageIndicators =
+            meta.InstanceNumber !== undefined ||
+            meta.AcquisitionNumber !== undefined ||
+            meta.BitsAllocated !== undefined;
 
+        return !hasImageIndicators;
+    };
     const processFilesFromArray = async (file:File[]) => {
         if (file.length ===0) {
         throw new Error("No DICOM files were found in the selected folder.")
         }
 
-        const filePaths = file.map(file => file.path);
+        let filePaths = file.map(file => file.path);
         const results = await window.api.readDicom(filePaths)
-        console.log(results)
+
+        // Filter out DICOMDIR results and log them
+        for (const [path, meta] of Object.entries(results)) {
+            if (isDicomDir(meta)) {
+                console.warn(`DICOMDIR file detected and skipped: ${path}`);
+                delete results[path];
+            }
+        }
+
+        // Update filePaths to only include valid DICOM files
+        filePaths = filePaths.filter(path => results[path]);
+
+        console.log("Filtered DICOM files length:", Object.keys(results).length)
+        console.log("Filtered DICOM files:", results)
         filePaths.sort((a, b) => {
         const metaA = results[a]
         const metaB = results[b]
@@ -195,18 +220,27 @@ const DicomApp: React.FC = () => {
             if (pathDepth > maxDepth) continue;
     
             if (await isDicomFile(file)) {
-                return await processFirstFile(file.path);
+                const res =  await processFirstFile(file.path);
+                if (res) return;
             };
         }
     
     }
 
-    const processFirstFile = async (filePath:string):Promise<void> => {
+    const processFirstFile = async (filePath:string):Promise<boolean> => {
         const results = await window.api.readDicom([filePath])
+
+        for (const [path, meta] of Object.entries(results)) {
+            if (isDicomDir(meta)) {
+                console.warn(`DICOMDIR file detected and skipped: ${path}`);
+                return false;
+            }
+        }
         setDataSet(results);
         
         setFilePaths([filePath])
         console.log(results);
+        return true;
     }
 
     const filterDicomFiles = async (files: File[]):Promise<File[]> => {
