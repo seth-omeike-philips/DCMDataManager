@@ -142,10 +142,7 @@ const ALLOWED_KEYS: (keyof BaseDicomMetadata)[] = [
 ]
 ALLOWED_KEYS.sort() // Sort keys alphabetically for better UX
 
-const NestedField: React.FC<{ label: string; value: any }> = ({
-  label,
-  value,
-}) => {
+const NestedField: React.FC<{ label: string; value: any }> = ({label, value}) => {
   const [open, setOpen] = useState(false)
 
   if (value === null || value === undefined) return null
@@ -206,18 +203,29 @@ const NestedField: React.FC<{ label: string; value: any }> = ({
           <div className="pl-4 mt-2 space-y-3 border-l">
             {value.map((item: any, index: number) => (
               <div key={index} className="space-y-1">
-
+                <div className="w-full flex flex-row items-center justify-between">
+                  <div className="w-full bg-slate-200 h-1"></div>
+                  <div className="px-1 text-[10px] text-muted-foreground">
+                    {index + 1}
+                  </div>
+                  <div className="w-full bg-slate-200 h-1"></div>
+                </div>
+                
                 {Object.entries(item).map(([k, v]) => {
                   if (k === "_vrMap") return null
 
                   return (
                     <div key={k}>
-                      <div className="font-mono text-[10px] text-muted-foreground">
-                        {k}
-                      </div>
-                      <div className="break-all text-foreground">
-                        {String(v)}
-                      </div>
+                      {/**
+                       * Recursively render nested fields. DICOM sequences can be deeply nested, 
+                       * so we use the same component to handle all levels of nesting.
+                       */}
+                      <NestedField
+                        key={String(k)}
+                        label={String(k)}
+                        value={v}
+                      />
+
                     </div>
                   )
                 })}
@@ -270,10 +278,7 @@ const NestedField: React.FC<{ label: string; value: any }> = ({
   return null
 }
 
-const DicomSidebar: React.FC<DicomSidebarProps> = ({
-  dataSet,
-  curSlice,
-}) => {
+const DicomSidebar: React.FC<DicomSidebarProps> = ({dataSet,curSlice}) => {
   if (!curSlice) {
     return (
       <div className="w-80 border-l p-4 text-sm text-muted-foreground">

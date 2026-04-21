@@ -15,6 +15,7 @@ const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile,policyLogic
 
 
     const renderField = (tagKey:string, value:any, path: TagPath, depthCount:number) => {
+
         if (Array.isArray(value)) {
             return (
             <div>
@@ -24,6 +25,7 @@ const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile,policyLogic
                 )}
                 {value.map((item, index) => (
                     <div key={`${[...path, tagKey, index].join(".")}`} className={`${typeof item !== "object" ? "border-l pl-4 ml-2" : ""}`}>
+                        
                         {renderField(tagKey, item, [...path, index], depthCount + 1)}
                     </div>
                 ))}
@@ -32,10 +34,11 @@ const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile,policyLogic
         }
         
         if (typeof value === "object" && value !== null && tagKey !== "_vrMap" && tagKey !== "PixelData") {
-            
+            const pathNumber = Number(path.join(".").split(".")[1]);
+            const name = `${tagKey} (${pathNumber+1})`;
             return (
                 <div className="">
-                    <div className="flex font-medium">{tagKey}</div>
+                    <div className="flex font-medium">{name}</div>
                     <div className="border-l pl-4 ml-2">
                         {Object.entries(value).map(([childKey, childValue]) => (
                             

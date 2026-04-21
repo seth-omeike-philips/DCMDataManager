@@ -36,6 +36,14 @@ const DicomApp: React.FC = () => {
     
 
 
+    /**
+     * Executes a pool of asynchronous operations with a specified limit
+     * @param limit Maximum number of concurrent operations
+     * @param items Array of items to process
+     * @param iteratorFn Function to apply to each item
+     * @returns Promise resolving to an array of results
+     * This is used to efficiently filter DICOM files by checking them in batches, preventing too many simultaneous file reads that could degrade performance.
+     */
     const asyncPool = async<T,R>(limit:number, items:T[], iteratorFn:(item:T)=> Promise<R>):Promise<R[]> => {
         const ret: Promise<R>[] = []
         const executing:Promise<any>[] = []
@@ -57,6 +65,12 @@ const DicomApp: React.FC = () => {
         return Promise.all(ret)
     }
 
+    /**
+     * Determines if a DICOM file is a directory (DICOMDIR) based on its metadata.
+     * @param meta  Metadata of the DICOM file to check
+     * @returns True if the file is a DICOM directory, false otherwise
+     * DICOMDIR files have a specific SOPClassUID and typically lack image-related tags. This function helps filter out DICOMDIR files from the dataset, ensuring that only actual image files are processed for viewing and editing.
+     */
     const isDicomDir = (meta: BaseDicomMetadata) => {
         if (meta.SOPClassUID === "1.2.840.10008.1.3.10") {
             return true;
@@ -69,9 +83,16 @@ const DicomApp: React.FC = () => {
 
         return !hasImageIndicators;
     };
+
+    /**
+     * Processes an array of files, filtering for valid DICOM files and updating the application state.
+     * @param file An array of File objects to process
+     * @returns A promise resolving to void
+     * This function checks each file in the array to determine if it is a valid DICOM file using the isDicomFile function. It then updates the application state with the filtered list of valid DICOM files and their metadata.
+     */
     const processFilesFromArray = async (file:File[]) => {
         if (file.length ===0) {
-        throw new Error("No DICOM files were found in the selected folder.")
+            throw new Error("No DICOM files were found in the selected folder.")
         }
 
         let filePaths = file.map(file => file.path);
@@ -100,6 +121,12 @@ const DicomApp: React.FC = () => {
         
 
     }
+    /**
+     * Checks if a file is a valid DICOM file by examining its header.
+     * @param file The file to check
+     * @returns A promise resolving to true if the file is a DICOM file, false otherwise
+     * DICOM files have a specific structure, including a 128-byte preamble followed by the characters "DICM". This function reads only the necessary portion of the file to verify its format, allowing for efficient filtering of valid DICOM files from a larger set of files.
+     */
     const isDicomFile = async (file: File): Promise<boolean> => {
         if (file.size < 132) return false; // too small to be DICOM
     
@@ -118,7 +145,13 @@ const DicomApp: React.FC = () => {
         return dicm;
     };
     
-    
+    /**
+     * Retrieves all valid DICOM files from a given folder, recursively up to a specified depth.
+     * @param fileList The list of files to process
+     * @param maxDepth Maximum directory depth to search for DICOM files
+     * @returns A promise resolving to an array of valid DICOM files
+     * This function processes a list of files, checking their depth based on their webkitRelativePath and filtering them using the isDicomFile function. It ensures that only valid DICOM files within the specified directory depth are collected for further processing, which is crucial for efficiently handling large datasets without overwhelming the application with too many files at once.
+     */
     const getDicomFilesFromFolder = async (fileList: FileList, maxDepth = MAX_DEPTH):Promise<File[]> => {
         const dicomFiles: File[] = [];
     
@@ -141,6 +174,12 @@ const DicomApp: React.FC = () => {
         setIsAllFilesAvailable(true);
     }
 
+    /**
+     * Determines the common path among a list of files.
+     * @param files The list of files to analyze
+     * @returns The common path as a string
+     * This function takes a list of files and extracts their directory paths to find the longest common path segment. This is useful for setting the upload root in the application, allowing for easier management of file paths and ensuring that all related DICOM files are organized under a common directory structure.
+     */
     const getCommonPath = (files: FileList): string => {
         if (files.length === 0) return ""
 
@@ -171,7 +210,12 @@ const DicomApp: React.FC = () => {
 
         return commonParts.join("\\")
     }
-
+    /**
+     * Handles the file input event, processing the selected files and updating the application state.
+     * @param e The change event from the file input element
+     * @returns A promise resolving to void
+     * This function is called when the user selects a folder containing DICOM files. It processes the selected files, filters for valid DICOM files, and updates the application state with the results.
+     */
     const handleFileInput = async (e: React.ChangeEvent<HTMLInputElement>) => {
         try {
         if (!e.target.files || e.target.files.length === 0) {
@@ -207,6 +251,13 @@ const DicomApp: React.FC = () => {
         }
     }
 
+    /**
+     * Fetches the first valid DICOM file from a list of files.
+     * @param fileList  The list of files to search through
+     * @param maxDepth  The maximum directory depth to search
+     * @returns A promise resolving to void
+     * This function iterates through the provided list of files, checking each one to determine if it is a valid DICOM file using the isDicomFile function. It also considers the directory depth of each file based on its webkitRelativePath to ensure that only files within the specified depth are processed. Once a valid DICOM file is found, it updates the application state with its metadata and path, allowing for the initial display of the DICOM study while the rest of the files are being processed in the background.
+     */
     const fetchFirstFile = async (fileList: FileList, maxDepth: number):Promise<void> => {  
         console.log("isLoading:",isLoading)
         for (const file of Array.from(fileList)) {
@@ -292,9 +343,6 @@ const DicomApp: React.FC = () => {
         setIsDragging(false)
     
         try {  
-                    
-            const start =new Date();
-        
             const items = e.dataTransfer.items
             const files: File[] = []
         
@@ -309,14 +357,13 @@ const DicomApp: React.FC = () => {
                 }
             }
                 
-            const start1 = new Date();
             await Promise.all(
-            Array.from(items).map(async (item) => {
-                const entry = item.webkitGetAsEntry()
-                if (entry) {
-                await collectEntries(entry, 0, MAX_DEPTH, files)
-                }
-            })
+                Array.from(items).map(async (item) => {
+                    const entry = item.webkitGetAsEntry()
+                    if (entry) {
+                    await collectEntries(entry, 0, MAX_DEPTH, files)
+                    }
+                })
             )
             const dataTransfer = new DataTransfer();
             files.forEach(file => dataTransfer.items.add(file));
@@ -331,30 +378,12 @@ const DicomApp: React.FC = () => {
             setIsFileUploaded(true);
             setIsLoading(false);
 
-
-            const end1 = new Date()
             console.log(`Length of files collected: ${files.length}`)
-            const elapsedMs1 = (end1.getTime() - start1.getTime()) 
-            console.log(`Elapsed seconds: ${elapsedMs1/1000}`)
-        
-        
-            const start2 = new Date()
+
             const dicomFiles = await filterDicomFiles(files)
-            console.log(`Length of files filtered: ${dicomFiles.length}`)
-            const end2 = new Date()
-            const elapsedMs2 = (end2.getTime() - start2.getTime()) 
-            console.log(`Elapsed seconds: ${elapsedMs2/1000}`)
-        
-        
-            const start3 = new Date()
+
             await processFilesFromArray(dicomFiles)
-            const end3 = new Date()
-            const elapsedMs3 = (end3.getTime() - start3.getTime()) 
-            console.log(`Elapsed seconds: ${elapsedMs3/1000}`)
-        
-            const end = new Date();
-            const elapsedMs = (end.getTime() - start.getTime()) 
-            console.log(`Elapsed seconds: ${elapsedMs/1000}`)
+
 
 
 
