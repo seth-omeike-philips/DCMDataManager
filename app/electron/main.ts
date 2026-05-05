@@ -185,7 +185,7 @@ ipcMain.handle("read-multiple-files",
 // IPC handler to encode changed DCM file into ArrayBuffer for saving
 ipcMain.handle("write-dicom",async (
   _event,
-  modifiedDatasets: Record<string, Record<string, TagAction>>,
+  modifiedDatasets:Record<string,TagAction>,
   dataSet: Record<string, BaseDicomMetadata>,
   uploadRoot:string|null
   ):Promise<ExportResult> => {
@@ -200,8 +200,8 @@ ipcMain.handle("write-dicom",async (
 
     
 
-    const writePromises = Object.entries(modifiedDatasets).map(
-      async ([filePath, modifiedDataset]) => {
+    const writePromises = Object.entries(dataSet).map(
+      async ([filePath, _]) => {
         try {
           const fileName = path.basename(filePath)
           if (fileName === undefined) return Promise.resolve()
@@ -209,7 +209,7 @@ ipcMain.handle("write-dicom",async (
           const originalDicom = dicomStore[filePath]
           const dicomCopy = dcmjs.data.DicomMessage.readFile(originalDicom.write())
           
-          for (const key of Object.keys(modifiedDataset)) {
+          for (const key of Object.keys(modifiedDatasets)) {
             const path = key.split(".");
             const rootTag = path[0];
             // Checking whether this is a root tag or nested tag
@@ -223,7 +223,7 @@ ipcMain.handle("write-dicom",async (
 
             const tagCode = tagInfo.tag.replace(/[(),]/g, "")
             const element = getElementAtPath(dicomCopy, path)
-            console.log(`Processing tag: ${key} with tag code: ${tagCode}. Element found at path: ${path.join(".")}:`, element)
+            //console.log(`Processing tag: ${key} with tag code: ${tagCode}. Element found at path: ${path.join(".")}:`, element)
             if (!element) {
               console.warn(`No element found in DICOM for key: ${key} with tag code: ${tagCode}. Skipping this tag.`)
               continue;
@@ -239,7 +239,7 @@ ipcMain.handle("write-dicom",async (
               continue;
             }
 
-            const newValue = resolveNewValue(dataSet[filePath],originalValue, modifiedDataset,path,vr);
+            const newValue = resolveNewValue(dataSet[filePath],originalValue, modifiedDatasets,path,vr);
             if (newValue === originalValue) continue;
             if (newValue === undefined) {
               console.warn(`Value for key: ${key} with tag code: ${tagCode} is undefined. Skipping this tag.`)

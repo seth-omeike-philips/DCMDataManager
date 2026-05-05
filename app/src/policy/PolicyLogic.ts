@@ -15,13 +15,10 @@ export type TagAction =
 
 
 
-export const policyLogicFunction = (tagActions: Partial<Record<PathKey, TagAction>>,dataSet: Record<string, BaseDicomMetadata>
-): Record<string, Record<PathKey, TagAction>> => {
+export const policyLogicFunction = (tagActions: Partial<Record<PathKey, TagAction>>): Record<PathKey,TagAction> => {
 
-  const modifiedDataSet: Record<string,Record<PathKey, TagAction>> = {};
-  for (const [filePath, _] of Object.entries(dataSet)) {
+  const modifiedDataSet:Record<PathKey,TagAction> = {};
 
-    modifiedDataSet[filePath] = {} as Record<PathKey,TagAction>;
 
     for (const key of Object.keys(tagActions) as PathKey[]) {
       const action = tagActions[key];
@@ -30,33 +27,32 @@ export const policyLogicFunction = (tagActions: Partial<Record<PathKey, TagActio
 
       switch (action?.type) {
         case "HASH":
-          modifiedDataSet[filePath][key] = { type: "HASH" };
+          modifiedDataSet[key] = { type: "HASH" };
           break;
 
         case "GENERATE_UID":
-          modifiedDataSet[filePath][key] = { type: "GENERATE_UID" };
+          modifiedDataSet[key] = { type: "GENERATE_UID" };
           break;
 
         case "KEEP":
-          modifiedDataSet[filePath][key] = { type: "KEEP" };
+          modifiedDataSet[key] = { type: "KEEP" };
           break;
 
         case "MAP":
-          modifiedDataSet[filePath][key] = {type: "MAP"};
+          modifiedDataSet[key] = {type: "MAP"};
           break;
 
         case "REMOVE":
-          modifiedDataSet[filePath][key] = { type: "REMOVE" };
+          modifiedDataSet[key] = { type: "REMOVE" };
           break;
         
         case "CUSTOM":
-          modifiedDataSet[filePath][key] = {type:"CUSTOM", value:action.value};
+          modifiedDataSet[key] = {type:"CUSTOM", value:action.value};
           break;
         default:
           //
       }
     }
-  }
 
   return modifiedDataSet;
 };

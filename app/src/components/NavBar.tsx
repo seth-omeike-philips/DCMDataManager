@@ -21,7 +21,7 @@ const Navbar: React.FC<NavbarProps> = ({ dataSet, isAllFilesAvailable,handleClos
   const [exportStatus, setExportStatus] = useState<"idle" | "loading" | "success" | "error">("idle")
   const {uploadRoot} = useFileContext();
   const { openModal } = useModal();
-  const [modifiedDataSet, setModifiedDataSet] = useState<Record<string, Record<PathKey, TagAction>>>({});
+  const [modifiedDataSet, setModifiedDataSet] = useState<Record<PathKey,TagAction>>({});
   const handleEditTags = () => {
     if (!dataSet) return
     setShowModal(true)

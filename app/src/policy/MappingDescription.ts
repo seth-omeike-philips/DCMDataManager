@@ -18,5 +18,8 @@ export const mappingDescription = {
     },
     "OtherPatientIDs":{
         "description": "Just adds Mapped_ to the beginning of the OtherPatientIDs",
+    },
+    "PatientAge":{
+        "description": "Sets the patient age to 999Y for anonymization",
     }
 }

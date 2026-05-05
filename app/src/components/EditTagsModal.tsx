@@ -14,7 +14,7 @@ interface Props {
   dataSet: Record<string, BaseDicomMetadata>
   onClose: () => void
   isAllFilesAvailable: boolean
-  setModifiedDataSet: React.Dispatch<React.SetStateAction<Record<string, Record<keyof BaseDicomMetadata, TagAction>>>>
+  setModifiedDataSet: React.Dispatch<React.SetStateAction<Record<string,TagAction>>>
 }
 
 type Status = "idle"| "success" | "error"
@@ -108,7 +108,7 @@ const EditTagsModal: React.FC<Props> = ({ dataSet, onClose,isAllFilesAvailable,s
     const handleSubmit = async () => {
         try {
             const tagActions = policyLogic[profile];
-            const modifiedDataSet = policyLogicFunction(tagActions,dataSet);
+            const modifiedDataSet = policyLogicFunction(tagActions);
 
             setModifiedDataSet(modifiedDataSet);
 

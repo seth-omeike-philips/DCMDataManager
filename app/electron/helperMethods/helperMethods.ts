@@ -109,6 +109,16 @@ export const mapper = (data:BaseDicomMetadata, path:(string|number)[]) => {
     return `${year}${newMonth.padStart(2, '0')}${newDay.padStart(2, '0')}`
     
   }
+  else if (key === "PatientAge") {
+    const value = data[key]
+    if (value === undefined || value === "") {
+      console.log(`No value to edit: Value: ${value}`)
+      return "";
+    }
+    // Note value is in the format nnnD, nnnW, nnnM, or nnnY (e.g., 025Y)
+    // Set patient age to 999 for anonymization
+    return String("999Y");
+  }
 
   return "";
 }
@@ -170,7 +180,7 @@ export function resolveNewValue(data: BaseDicomMetadata,originalValue: any,modif
     case "GENERATE_UID":
       return enforceVR(path,generateUID(), vr);
     case "CUSTOM":
-      console.log(`Applying custom transformation for key: ${pathKey} with original value: ${originalValue} and VR: ${vr}. NewValue: ${transformation}`)
+      //console.log(`Applying custom transformation for key: ${pathKey} with original value: ${originalValue} and VR: ${vr}. NewValue: ${transformation}`)
       return enforceVR(path,transformation.value, vr);
     default:
       // Nothing to do. Perhaps throw an error as we don't expect this case to be reached?
@@ -296,6 +306,14 @@ function enforceVR(key:(string | number)[], value: string, vr: string): string|s
     case "DS": { // Decimal String
       if (!/^-?\d+(\.\d+)?$/.test(trimmed)) {
         throw new Error(`Error on tag: ${key}\nDS must be a valid decimal number. Value Received: ${trimmed}`);
+      }
+      return trimmed;
+    }
+    case "AS": { // Age String
+      if (!/^\d{3}[DWMY]$/.test(trimmed)) {
+        throw new Error(
+          `Error on tag: ${key}\nAS must be in format nnnD, nnnW, nnnM, or nnnY (e.g., 025Y). Value Received: ${trimmed}`
+        );
       }
       return trimmed;
     }

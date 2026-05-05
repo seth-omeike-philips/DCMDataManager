@@ -286,14 +286,18 @@ const DicomSidebar: React.FC<DicomSidebarProps> = ({dataSet,curSlice}) => {
       </div>
     )
   }
+
+
   const [displayAdvancedTags, setDisplayAdvancedTags] = useState(false);
   const tags = dataSet[curSlice.filePath]
 
   console.log("Rendering sidebar for slice:", curSlice.fileName, "with tags:", tags)
 
+
+
   if (!tags) {
     return (
-      <div className="w-80 border-l p-4 text-sm text-muted-foreground">
+      <div className="w-96 border-l p-4 text-sm text-muted-foreground">
         No metadata available
       </div>
     )
@@ -301,7 +305,10 @@ const DicomSidebar: React.FC<DicomSidebarProps> = ({dataSet,curSlice}) => {
 
   return (
     <div
-      className={`w-80 border-l bg-background flex flex-col p-4 space-y-4 pb-32`}
+      className={` w-96
+        bg-background flex flex-col p-4 space-y-4 pb-32 relative
+      `}
+
     >
       <div className="px-4 py-3 border-b">
         <h2 className="text-sm font-semibold">DICOM Metadata</h2>
@@ -366,6 +373,7 @@ const DicomSidebar: React.FC<DicomSidebarProps> = ({dataSet,curSlice}) => {
           
         
       </ScrollArea>
+
     </div>
   )
 }
