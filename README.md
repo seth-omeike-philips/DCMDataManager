@@ -39,10 +39,13 @@ This DICOM APP is used to visualize DICOM data, edit the tags of the DICOM data,
             This file enables us to spawn a Modal viewer anywhere. Use it for user notifiations about error, success, or info.
 
         NavBar.tsx
+            Navigation bar at the top of the page. Allows users to perform tasks quickly.
 
         UploadCard.tsx
+            File UI for uploading files 
 
         UploadProfileHelp.tsx
+            Description of what json file should look like for Users that want to upload their own json file 
     /context
         FileContext.tsx
             This context tracks the files that the user uploads, specifically the filePaths and upload root (for exporting)
