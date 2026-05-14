@@ -38,7 +38,7 @@ const Modal: React.FC<Props> = ({ type, title, message, closeModal }) => {
             <h2 className="text-lg font-semibold">{title}</h2>
             <button
               onClick={closeModal}
-              className="text-slate-900 hover:bg-slate-300"
+              className="text-slate-900 bg-slate-200 hover:bg-slate-300"
             >
               ✕
             </button>

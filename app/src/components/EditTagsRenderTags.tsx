@@ -73,7 +73,8 @@ const EditTagsRenderTags: React.FC<Props> = ({ tagKey, value,profile,policyLogic
                 <div className="flex flex-col pb-1">
                     <select value={policyLogic[profile][pathKey]?.type ?? "COULD_NOT_FIND_TAG"}
                         onChange={e => handleTagChange( path, e.target.value as TagAction["type"], undefined)}
-                        className="bg-slate-100 border rounded px-2 py-1"
+                        className={`bg-slate-100 border rounded px-2 py-1 
+                            ${policyLogic[profile][pathKey] && policyLogic[profile][pathKey]?.type !== "KEEP" ? ("border-blue-500") : ("border")}`}
                     >
                         <option value="KEEP">
                             KEEP
