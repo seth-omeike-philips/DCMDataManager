@@ -225,6 +225,7 @@ function cleanHash(value: string, vr: string): string {
  * @returns the value formatted according to the specified VR
  * VR-specific enforcement rules:
  * - CS: Trims whitespace, converts to uppercase, and checks max length of 16 characters
+ * - DT: Checks that it is in the format (YYYYMMDDHHMMSS.FFFFFF&ZZXX) but allows for partial format
  * - SH: Trims whitespace and checks max length of 16 characters
  * - LO: Trims whitespace and checks max length of 64 characters
  * - UI: Trims whitespace, checks that it contains only numbers and dots, and sanitizes to ensure it is a valid UID
@@ -233,6 +234,7 @@ function cleanHash(value: string, vr: string): string {
  * - PN: Trims whitespace and checks max length of 64 characters
  * - IS: Checks that it is a valid integer string
  * - DS: Checks that it is a valid decimal string
+ * - AS: Checks that input is of format d{3}[DWMY]$
  * For other VRs, it returns the trimmed value without additional checks.
  * If the input value is null or undefined, it returns it as is without modification.
  */
@@ -252,6 +254,20 @@ function enforceVR(key:(string | number)[], value: string, vr: string): string|s
         throw new Error(`Error on tag: ${key}\nCS exceeds max length of 16. Value Received: ${formatted} has length: ${trimmed.length}`);
       }
       return formatted;
+    }
+    case "AE": { // Application Entity (max 16, uppercase, no leading/trailing spaces)
+      const formatted = trimmed.toUpperCase();
+      if (formatted.length > 16) {
+        throw new Error(`Error on tag: ${key}\nCS exceeds max length of 16. Value Received: ${formatted} has length: ${trimmed.length}`);
+      }
+      return formatted;
+    }
+    case "DT": { // DateTime (YYYYMMDDHHMMSS.FFFFFF&ZZXX)
+      // Note: DICOM allows for partial DateTime values, so we will only check the format of the provided value without enforcing the presence of all components
+      if (!/^\d{4}(\d{2}(\d{2}(\d{2}(\d{2}(\d{2}(\.\d{1,6})?)?)?)?)?)?([+-]\d{4})?$/.test(trimmed)) {
+        throw new Error(`Error on tag: ${key}\nDT must be in format YYYYMMDDHHMMSS.FFFFFF&ZZXX with optional components. Value Received: ${trimmed}`);
+      }
+      return trimmed;
     }
 
     case "SH": { // Short String (max 16)
@@ -453,7 +469,6 @@ export const getElementAtPath = (dicom: any, path: (string | number)[]) => {
  */
 export const setValueAtPath = (dicom: any,  path: (string | number)[],  vr: string, newValue: any) => {
   let current = dicom.dict;
-
   // 🔹 Traverse to parent of target
   for (let i = 0; i < path.length - 1; i++) {
     const key = path[i];
@@ -580,12 +595,11 @@ export const setValueAtPath = (dicom: any,  path: (string | number)[],  vr: stri
 
     if (tagCode && current[tagCode]) {
       const targetElement = current[tagCode];
-
+      
       if (!targetElement || !("Value" in targetElement)) {
         console.warn(`Invalid target element at ${path.join(".")}`);
         return;
       }
-
       targetElement.Value = Array.isArray(newValue)
         ? newValue
         : [String(newValue)];

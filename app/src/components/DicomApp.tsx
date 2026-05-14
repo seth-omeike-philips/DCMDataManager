@@ -20,7 +20,7 @@ const DicomApp: React.FC = () => {
     const [isAllFilesAvailable, setIsAllFilesAvailable] = useState<boolean>(false);
     const [isDragging, setIsDragging] = useState(false)
     const [isLoading, setIsLoading] = useState<boolean>(false);
-    const MAX_DEPTH = 2;
+    const MAX_DEPTH = 6;
 
     const [dataSet, setDataSet] = useState<Record<string, BaseDicomMetadata>>({})
     const [curSlice, setCurSlice] = useState<DicomSlice | undefined>(undefined);

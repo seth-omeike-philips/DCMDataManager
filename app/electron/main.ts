@@ -113,15 +113,12 @@ if (process.platform === "win32") {
 
 app.whenReady().then(() => {
   registerPhilipsDictionary()
-  Menu.setApplicationMenu(null)
+  //Menu.setApplicationMenu(null)
 
   createSplash()
   createWindow()
 
 })
-
-
-
 
 
 
@@ -144,7 +141,7 @@ ipcMain.handle("read-dicom", async (_event, filePaths: string[]):Promise<Record<
         ignoreErrors: true,
       })
       dicomStore[filePath] = dicomData
-
+      // 
       if (
         dicomData.dict["00080005"] &&
         dicomData.dict["00080005"].Value
@@ -196,8 +193,6 @@ ipcMain.handle("write-dicom",async (
 
     const exportFolder = uploadRoot + "_DelD"
     
-    console.log("ExportFolder:", exportFolder)
-
     
 
     const writePromises = Object.entries(dataSet).map(
